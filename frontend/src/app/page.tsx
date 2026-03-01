@@ -151,8 +151,8 @@ export default function Home() {
                 />
               </div>
               <button
-                type="submit"
-                className="bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white font-medium py-2 px-6 rounded-md transition-colors text-sm"
+                onClick={handleCreateUser}
+                className="px-4 py-2 bg-zinc-800 text-white rounded-md hover:bg-zinc-700 transition-colors cursor-pointer"
               >
                 Add User
               </button>
@@ -176,8 +176,8 @@ export default function Home() {
                 />
               </div>
               <button
-                type="submit"
-                className="bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white font-medium py-2 px-6 rounded-md transition-colors text-sm"
+                onClick={handleCreateContest}
+                className="px-4 py-2 bg-zinc-800 text-white rounded-md hover:bg-zinc-700 transition-colors cursor-pointer"
               >
                 Add Contest
               </button>
