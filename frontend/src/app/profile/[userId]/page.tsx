@@ -97,23 +97,26 @@ export default function ProfilePage() {
         const userRes = await fetch(
           `${process.env.NEXT_PUBLIC_API_URL}/users/${userId}`,
         );
-        if (!userRes.ok) throw new Error("User not found");
+
+        if (!userRes.ok) {
+          if (userRes.status === 404) throw new Error("User not found");
+          throw new Error("System communication error");
+        }
         const userData = await userRes.json();
 
         const histRes = await fetch(
           `${process.env.NEXT_PUBLIC_API_URL}/users/${userId}/history`,
         );
-        if (!histRes.ok) throw new Error("Failed to fetch history");
+
+        if (!histRes.ok) throw new Error("Rating history unavailable");
         const histData = await histRes.json();
 
         setUser(userData);
         setHistory(Array.isArray(histData) ? histData : []);
       } catch (err) {
-        if (err instanceof Error) {
-          setError(err.message);
-        } else {
-          setError("An unknown error occurred");
-        }
+        setError(
+          err instanceof Error ? err.message : "An unknown error occurred",
+        );
       } finally {
         setLoading(false);
       }
