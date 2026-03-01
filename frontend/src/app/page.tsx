@@ -34,10 +34,14 @@ export default function Home() {
     e.preventDefault();
     if (!newUserName.trim()) return;
 
+    setAdminMessage({ text: "Creating user...", isError: false });
+
     try {
       const res = await fetch(`${API_BASE_URL}users`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({ name: newUserName.trim() }),
       });
 
@@ -45,13 +49,13 @@ export default function Home() {
 
       const data = await res.json();
       setAdminMessage({
-        text: `User Created Successfully! UUID: ${data.id || data.ID || "Check DB"}`,
+        text: `User Created! UUID: ${data.id || data.ID || "Check DB"}`,
         isError: false,
       });
       setNewUserName("");
     } catch (err) {
       setAdminMessage({
-        text: "Error creating user. Is the server running?",
+        text: "Connection Error. Is the Render service active?",
         isError: true,
       });
       console.error(err);
@@ -61,6 +65,8 @@ export default function Home() {
   const handleCreateContest = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newContestName.trim()) return;
+
+    setAdminMessage({ text: "Creating contest...", isError: false });
 
     try {
       const res = await fetch(`${API_BASE_URL}contests`, {
@@ -73,13 +79,13 @@ export default function Home() {
 
       const data = await res.json();
       setAdminMessage({
-        text: `Contest Created Successfully! ID: ${data.id || data.ID || "Check DB"}`,
+        text: `Contest Created! ID: ${data.id || data.ID || "Check DB"}`,
         isError: false,
       });
       setNewContestName("");
     } catch (err) {
       setAdminMessage({
-        text: "Error creating contest. Is the server running?",
+        text: "Connection Error. Check backend logs on Render.",
         isError: true,
       });
       console.error(err);
@@ -96,7 +102,7 @@ export default function Home() {
           <p className="text-zinc-400 text-base max-w-xl mx-auto leading-relaxed">
             A high-performance percentile tracking system.{" "}
             <br className="hidden sm:block" />
-            Query a UUID to retrieve historical performance and tier data.
+            Connected to Render & Supabase for production stability.
           </p>
         </div>
 
@@ -114,13 +120,13 @@ export default function Home() {
                 value={userId}
                 onChange={(e) => setUserId(e.target.value)}
                 placeholder="Enter User UUID..."
-                className="w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-md py-2.5 pl-10 pr-4 focus:outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 transition-colors font-mono text-sm"
+                className="w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-md py-2.5 pl-10 pr-4 focus:outline-none focus:border-zinc-500 transition-colors font-mono text-sm"
                 required
               />
             </div>
             <button
               type="submit"
-              className="bg-zinc-100 text-zinc-900 hover:bg-white font-medium py-2.5 px-6 rounded-md transition-colors text-sm cursor-pointer"
+              className="bg-zinc-100 text-zinc-900 hover:bg-white font-medium py-2.5 px-6 rounded-md transition-colors text-sm"
             >
               Query System
             </button>
@@ -151,8 +157,8 @@ export default function Home() {
                 />
               </div>
               <button
-                onClick={handleCreateUser}
-                className="px-4 py-2 bg-zinc-800 text-white rounded-md hover:bg-zinc-700 transition-colors cursor-pointer"
+                type="submit"
+                className="px-4 py-2 bg-zinc-800 text-white rounded-md hover:bg-zinc-700 transition-colors"
               >
                 Add User
               </button>
@@ -176,8 +182,8 @@ export default function Home() {
                 />
               </div>
               <button
-                onClick={handleCreateContest}
-                className="px-4 py-2 bg-zinc-800 text-white rounded-md hover:bg-zinc-700 transition-colors cursor-pointer"
+                type="submit"
+                className="px-4 py-2 bg-zinc-800 text-white rounded-md hover:bg-zinc-700 transition-colors"
               >
                 Add Contest
               </button>
@@ -186,7 +192,11 @@ export default function Home() {
 
           {adminMessage.text && (
             <div
-              className={`text-sm mt-4 p-3 rounded-md border ${adminMessage.isError ? "bg-red-950/20 border-red-900/50 text-red-400" : "bg-green-950/20 border-green-900/50 text-green-400"}`}
+              className={`text-sm mt-4 p-3 rounded-md border animate-in fade-in slide-in-from-top-1 ${
+                adminMessage.isError
+                  ? "bg-red-950/20 border-red-900/50 text-red-400"
+                  : "bg-green-950/20 border-green-900/50 text-green-400"
+              }`}
             >
               {adminMessage.text}
             </div>
@@ -200,17 +210,15 @@ export default function Home() {
               Predictable Scaling
             </h3>
             <p className="text-sm text-zinc-500">
-              Go & PostgreSQL backend for high-throughput finalization.
+              Deployed on Render with Go 1.25 runtime.
             </p>
           </div>
 
           <div className="space-y-2">
             <Activity className="text-zinc-400 w-5 h-5" />
-            <h3 className="font-medium text-zinc-100 text-sm">
-              Percentile Tiers
-            </h3>
+            <h3 className="font-medium text-zinc-100 text-sm">Live Sync</h3>
             <p className="text-sm text-zinc-500">
-              Dynamic standard ratings from Newbie to Grandmaster.
+              Real-time data streaming via Supabase Postgres.
             </p>
           </div>
 
@@ -220,7 +228,7 @@ export default function Home() {
               ACID Compliance
             </h3>
             <p className="text-sm text-zinc-500">
-              Transaction-safe schema ensuring zero data corruption.
+              Relational integrity for all contest metrics.
             </p>
           </div>
         </div>
