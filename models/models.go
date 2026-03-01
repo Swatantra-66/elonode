@@ -2,6 +2,9 @@ package models
 
 import (
 	"time"
+
+	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 type Tier string
@@ -25,7 +28,13 @@ type User struct {
 	CreatedAt      time.Time `json:"created_at"`
 }
 
-// Contest represents a single competition event.
+func (u *User) BeforeCreate(tx *gorm.DB) (err error) {
+	if u.ID == "" {
+		u.ID = uuid.NewString()
+	}
+	return
+}
+
 type Contest struct {
 	ID                string    `gorm:"primaryKey;type:uuid;default:gen_random_uuid()" json:"id"`
 	Name              string    `gorm:"not null;index" json:"name"`
@@ -33,6 +42,13 @@ type Contest struct {
 	TotalParticipants int       `gorm:"default:0" json:"total_participants"`
 	Finalized         bool      `gorm:"default:false;index" json:"finalized"`
 	CreatedAt         time.Time `json:"created_at"`
+}
+
+func (c *Contest) BeforeCreate(tx *gorm.DB) (err error) {
+	if c.ID == "" {
+		c.ID = uuid.NewString()
+	}
+	return
 }
 
 type RatingHistory struct {
