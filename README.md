@@ -92,14 +92,14 @@ A high-performance, full-stack application designed to track user ratings and pe
 
 ### 1. Clone the repository
 
-\`\`\`bash
+```bash
 git clone https://github.com/Swatantra-66/contest-rating-system.git
 cd contest-rating-system
-\`\`\`
+```
 
 ### 2. Setup the Go Backend
 
-\`\`\`bash
+```bash
 
 # Navigate to backend directory (if applicable, or root)
 
@@ -112,12 +112,14 @@ echo "DATABASE_URL=postgres://postgres.xxx:YOUR_PASSWORD@aws-0-eu-central-1.pool
 # Run the Go server
 
 go run main.go
-\`\`\`
+
+```
+
 _The server will start on `http://localhost:8080`_
 
 ### 3. Setup the Next.js Frontend
 
-\`\`\`bash
+```bash
 
 # Navigate to the frontend directory
 
@@ -134,7 +136,8 @@ echo "NEXT_PUBLIC_API_URL=http://localhost:8080/api/" > .env.local
 # Start the development server
 
 npm run dev
-\`\`\`
+```
+
 _The frontend will start on `http://localhost:3000`_
 
 ## Environment Variables Reference
