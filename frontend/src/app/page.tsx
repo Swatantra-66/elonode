@@ -126,7 +126,7 @@ export default function Home() {
             </div>
             <button
               type="submit"
-              className="bg-zinc-100 text-zinc-900 hover:bg-white font-medium py-2.5 px-6 rounded-md transition-colors text-sm"
+              className="bg-zinc-100 text-zinc-900 hover:bg-white font-medium py-2.5 px-6 rounded-md transition-colors text-sm cursor-pointer"
             >
               Query System
             </button>
@@ -158,7 +158,7 @@ export default function Home() {
               </div>
               <button
                 type="submit"
-                className="px-4 py-2 bg-zinc-800 text-white rounded-md hover:bg-zinc-700 transition-colors"
+                className="px-4 py-2 bg-zinc-800 text-white rounded-md hover:bg-zinc-700 transition-colors cursor-pointer"
               >
                 Add User
               </button>
@@ -183,7 +183,7 @@ export default function Home() {
               </div>
               <button
                 type="submit"
-                className="px-4 py-2 bg-zinc-800 text-white rounded-md hover:bg-zinc-700 transition-colors"
+                className="px-4 py-2 bg-zinc-800 text-white rounded-md hover:bg-zinc-700 transition-colors cursor-pointer"
               >
                 Add Contest
               </button>
