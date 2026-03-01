@@ -95,7 +95,7 @@ export default function ProfilePage() {
     const fetchData = async () => {
       try {
         const userRes = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/users/${userId}`,
+          `${process.env.NEXT_PUBLIC_API_URL}users/${userId}`,
         );
 
         if (!userRes.ok) {
@@ -105,7 +105,7 @@ export default function ProfilePage() {
         const userData = await userRes.json();
 
         const histRes = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/users/${userId}/history`,
+          `${process.env.NEXT_PUBLIC_API_URL}users/${userId}/history`,
         );
 
         if (!histRes.ok) throw new Error("Rating history unavailable");
