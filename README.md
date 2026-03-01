@@ -107,7 +107,7 @@ go mod tidy
 
 # Create a .env file for your database connection
 
-echo "DATABASE_URL=postgres://postgres.xxx:YOUR_PASSWORD@aws-0-eu-central-1.pooler.supabase.com:5432/postgres" > .env
+echo "DATABASE_URL=postgres://postgres.xxx:your-password@aws-0-eu-central-1.pooler.supabase.com:5432/postgres" > .env
 
 # Run the Go server
 
