@@ -1,51 +1,78 @@
 # Contest Rating System
 
-A complete competitive rating engine — percentile-based, transparent, and scalable.
+A high-performance, full-stack application designed to track user ratings and percentiles across competitive programming or 1v1 match environments. Built with a decoupled architecture, it features a custom rating engine that calculates performance trajectories and stores historical match data.
 
----
+## Live Demo
 
-## Architecture
+- **Frontend:** [https://contest-rating.vercel.app](https://contest-rating.vercel.app/)
+- **Backend API:** Hosted on Render
+- **Database:** Supabase (PostgreSQL)
 
-```
-frontend/          Next.js (TypeScript)  — /profile/[userId] page
-backend/           Go (Gin) REST API
-  main.go
-  models/          GORM models
-  rating/          Pure rating engine (zero dependencies)
-  handlers/        HTTP handlers
-  schema.sql       PostgreSQL DDL
-  docker-compose.yml
-```
+## Tech Stack
 
----
+**Frontend:**
+
+- **Framework:** Next.js (React)
+- **Styling:** Tailwind CSS
+- **Data Visualization:** Recharts
+- **Icons:** Lucide React
+- **Hosting:** Vercel
+
+**Backend:**
+
+- **Language:** Go (Golang)
+- **Web Framework:** Gin
+- **ORM:** GORM
+- **Hosting:** Render
+
+**Database:**
+
+- **Provider:** Supabase
+- **Type:** PostgreSQL (Relational Database)
+- **Features:** ACID Compliance, Transactional integrity for rating updates
+
+## Features
+
+- **User Management:** Generate unique user profiles with starting baseline ratings.
+- **Contest Tracking:** Create and manage unique contests/matches.
+- **Rating Engine:** Custom Golang algorithm calculates rating changes and percentiles based on 1v1 match placements.
+- **Transaction Safety:** Go backend utilizes database transactions to ensure that user ratings and rating histories are updated atomically.
+- **Data Visualization:** Dynamic profile pages featuring interactive line charts to track a user's performance trajectory over time.
+- **Decoupled Architecture:** Clean separation of concerns between the Next.js client UI and the Golang REST API.
+
+## System Architecture
+
+1. **Client Layer:** Next.js provides a responsive UI. Forms submit match data (Winner/Loser UUIDs and Contest UUID) to the backend.
+2. **API Layer:** The Go backend receives the payload, validates the UUIDs, and triggers the `engine.Calculate()` logic.
+3. **Database Layer:** GORM connects directly to Supabase via port 5432 (bypassing connection poolers for stable migrations). Atomic transactions ensure no data corruption occurs during concurrent rating updates.
 
 ## Rating Algorithm
 
-| Step | Formula |
-|------|---------|
-| 1 | `Beaten = TotalParticipants − Rank` |
-| 2 | `Percentile = Beaten / TotalParticipants` |
-| 3 | Lookup percentile bracket → Standard Performance Rating |
-| 4 | `RatingChange = (Performance − OldRating) / 2` |
-| 5 | `NewRating = OldRating + RatingChange` |
-| 6 | Derive Tier from NewRating |
+| Step | Formula                                                 |
+| ---- | ------------------------------------------------------- |
+| 1    | `Beaten = TotalParticipants − Rank`                     |
+| 2    | `Percentile = Beaten / TotalParticipants`               |
+| 3    | Lookup percentile bracket → Standard Performance Rating |
+| 4    | `RatingChange = (Performance − OldRating) / 2`          |
+| 5    | `NewRating = OldRating + RatingChange`                  |
+| 6    | Derive Tier from NewRating                              |
 
 ### Percentile → Performance Brackets
 
 | Percentile | Performance |
-|-----------|------------|
-| Top 1%    | 1800       |
-| Top 5%    | 1400       |
-| Top 10%   | 1200       |
-| Top 20%   | 1150       |
-| Top 30%   | 1100       |
-| Top 50%   | 1000       |
-| Below 50% | 900        |
+| ---------- | ----------- |
+| Top 1%     | 1800        |
+| Top 5%     | 1400        |
+| Top 10%    | 1200        |
+| Top 20%    | 1150        |
+| Top 30%    | 1100        |
+| Top 50%    | 1000        |
+| Below 50%  | 900         |
 
 ### Tier Thresholds
 
-| Tier        | Rating     | Color  |
-|------------|-----------|--------|
+| Tier        | Rating    | Color  |
+| ----------- | --------- | ------ |
 | Newbie      | < 1100    | Gray   |
 | Apprentice  | 1100–1149 | Green  |
 | Specialist  | 1150–1199 | Blue   |
@@ -55,74 +82,69 @@ backend/           Go (Gin) REST API
 
 ---
 
-## Quick Start (Docker)
+## Local Setup
 
-```bash
-cd backend
-docker compose up --build
-```
+### Prerequisites
 
-API will be at `http://localhost:8080`.
+- [Node.js](https://nodejs.org/) (v18+)
+- [Go](https://golang.org/) (v1.20+)
+- A [Supabase](https://supabase.com/) account and project
 
----
+### 1. Clone the repository
 
-## API Endpoints
+\`\`\`bash
+git clone https://github.com/Swatantra-66/contest-rating-system.git
+cd contest-rating-system
+\`\`\`
 
-### Create User
-```
-POST /api/users
-{ "name": "Alice" }
-```
+### 2. Setup the Go Backend
 
-### Create Contest
-```
-POST /api/contests
-{ "name": "Weekly 001", "date": "2025-06-01T12:00:00Z" }
-```
+\`\`\`bash
 
-### Finalize Contest (triggers rating updates)
-```
-POST /api/contests/:id/finalize
-[
-  { "user_id": "uuid-a", "rank": 1 },
-  { "user_id": "uuid-b", "rank": 2 }
-]
-```
+# Navigate to backend directory (if applicable, or root)
 
-### Get User Profile
-```
-GET /api/users/:id
-```
+go mod tidy
 
-### Get Rating History
-```
-GET /api/users/:id/history
-```
+# Create a .env file for your database connection
 
----
+echo "DATABASE_URL=postgres://postgres.xxx:YOUR_PASSWORD@aws-0-eu-central-1.pooler.supabase.com:5432/postgres" > .env
 
-## Running Tests
+# Run the Go server
 
-```bash
-cd backend
-go test ./rating/...
-```
+go run main.go
+\`\`\`
+_The server will start on `http://localhost:8080`_
 
----
+### 3. Setup the Next.js Frontend
 
-## Frontend (Next.js)
+\`\`\`bash
 
-The `contest-rating-frontend.jsx` artifact is a ready-to-use React component.
+# Navigate to the frontend directory
 
-For the full Next.js page, create `pages/profile/[userId].tsx` and wire it to `GET /api/users/:id` and `GET /api/users/:id/history`.
+cd frontend
 
-```tsx
-// pages/profile/[userId].tsx
-export async function getServerSideProps({ params }) {
-  const [user, history] = await Promise.all([
-    fetch(`${API}/api/users/${params.userId}`).then(r => r.json()),
-    fetch(`${API}/api/users/${params.userId}/history`).then(r => r.json()),
-  ]);
-  return { props: { user, history } };
-}
-```
+# Install dependencies
+
+npm install
+
+# Create a .env.local file
+
+echo "NEXT_PUBLIC_API_URL=http://localhost:8080/api/" > .env.local
+
+# Start the development server
+
+npm run dev
+\`\`\`
+_The frontend will start on `http://localhost:3000`_
+
+## Environment Variables Reference
+
+Ensure these are set in your deployment environments (Vercel & Render) and **never committed to version control**.
+
+**Backend (`.env`)**
+
+- `DATABASE_URL`: Your Supabase PostgreSQL connection string (Ensure port 5432 is used for GORM compatibility).
+
+**Frontend (`.env.local`)**
+
+- `NEXT_PUBLIC_API_URL`: https://contest-rating-system.onrender.com/api/
