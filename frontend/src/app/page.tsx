@@ -35,7 +35,7 @@ export default function Home() {
     if (!newUserName.trim()) return;
 
     try {
-      const res = await fetch(`${API_BASE_URL}/users`, {
+      const res = await fetch(`${API_BASE_URL}users`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: newUserName.trim() }),
@@ -63,7 +63,7 @@ export default function Home() {
     if (!newContestName.trim()) return;
 
     try {
-      const res = await fetch(`${API_BASE_URL}/contests`, {
+      const res = await fetch(`${API_BASE_URL}contests`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: newContestName.trim() }),
