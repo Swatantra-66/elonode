@@ -9,12 +9,18 @@ import {
   Activity,
   UserPlus,
   Trophy,
+  Swords,
 } from "lucide-react";
 
 export default function Home() {
   const [userId, setUserId] = useState("");
   const [newUserName, setNewUserName] = useState("");
   const [newContestName, setNewContestName] = useState("");
+
+  const [finalizeContestId, setFinalizeContestId] = useState("");
+  const [winnerId, setWinnerId] = useState("");
+  const [loserId, setLoserId] = useState("");
+
   const [adminMessage, setAdminMessage] = useState({
     text: "",
     isError: false,
@@ -92,6 +98,49 @@ export default function Home() {
     }
   };
 
+  const handleFinalizeMatch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!finalizeContestId.trim() || !winnerId.trim() || !loserId.trim())
+      return;
+
+    setAdminMessage({ text: "Calculating Elo ratings...", isError: false });
+
+    try {
+      const payload = {
+        participants: [
+          { user_id: winnerId.trim(), rank: 1 },
+          { user_id: loserId.trim(), rank: 2 },
+        ],
+      };
+
+      const res = await fetch(
+        `${API_BASE_URL}contests/${finalizeContestId.trim()}/finalize`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        },
+      );
+
+      if (!res.ok) throw new Error("Failed to finalize contest");
+
+      setAdminMessage({
+        text: "Match Finalized! Ratings have been successfully updated.",
+        isError: false,
+      });
+
+      setFinalizeContestId("");
+      setWinnerId("");
+      setLoserId("");
+    } catch (err) {
+      setAdminMessage({
+        text: "Error finalizing match. Verify all UUIDs are correct.",
+        isError: true,
+      });
+      console.error(err);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-50 flex flex-col items-center justify-center p-6 font-sans">
       <div className="max-w-3xl w-full space-y-12">
@@ -133,12 +182,12 @@ export default function Home() {
           </form>
         </div>
 
-        <div className="max-w-xl mx-auto pt-8 border-t border-zinc-800/50 space-y-4">
+        <div className="max-w-xl mx-auto pt-8 border-t border-zinc-800/50 space-y-6">
           <h2 className="text-xs font-semibold text-zinc-500 uppercase tracking-widest mb-4">
             System Administration
           </h2>
 
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-4">
             <form
               onSubmit={handleCreateUser}
               className="flex flex-col sm:flex-row gap-3"
@@ -158,7 +207,7 @@ export default function Home() {
               </div>
               <button
                 type="submit"
-                className="px-4 py-2 bg-zinc-800 text-white rounded-md hover:bg-zinc-700 transition-colors cursor-pointer"
+                className="px-4 py-2 bg-zinc-800 text-white rounded-md hover:bg-zinc-700 transition-colors cursor-pointer whitespace-nowrap"
               >
                 Add User
               </button>
@@ -183,11 +232,54 @@ export default function Home() {
               </div>
               <button
                 type="submit"
-                className="px-4 py-2 bg-zinc-800 text-white rounded-md hover:bg-zinc-700 transition-colors cursor-pointer"
+                className="px-4 py-2 bg-zinc-800 text-white rounded-md hover:bg-zinc-700 transition-colors cursor-pointer whitespace-nowrap"
               >
                 Add Contest
               </button>
             </form>
+
+            <div className="pt-4 border-t border-zinc-800/30">
+              <h3 className="text-[10px] font-semibold text-zinc-600 uppercase tracking-widest mb-3 flex items-center gap-2">
+                <Swords size={12} /> Record 1v1 Match Results
+              </h3>
+              <form
+                onSubmit={handleFinalizeMatch}
+                className="flex flex-col gap-3 p-4 bg-zinc-900/30 border border-zinc-800/50 rounded-md"
+              >
+                <input
+                  type="text"
+                  value={finalizeContestId}
+                  onChange={(e) => setFinalizeContestId(e.target.value)}
+                  placeholder="Contest UUID"
+                  className="w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-md py-2 px-3 focus:outline-none focus:border-zinc-500 transition-colors font-mono text-xs"
+                  required
+                />
+                <div className="flex gap-3">
+                  <input
+                    type="text"
+                    value={winnerId}
+                    onChange={(e) => setWinnerId(e.target.value)}
+                    placeholder="Winner UUID (1st Place)"
+                    className="w-full bg-green-950/10 border border-green-900/30 text-zinc-100 rounded-md py-2 px-3 focus:outline-none focus:border-green-700 transition-colors font-mono text-xs placeholder:text-zinc-600"
+                    required
+                  />
+                  <input
+                    type="text"
+                    value={loserId}
+                    onChange={(e) => setLoserId(e.target.value)}
+                    placeholder="Loser UUID (2nd Place)"
+                    className="w-full bg-red-950/10 border border-red-900/30 text-zinc-100 rounded-md py-2 px-3 focus:outline-none focus:border-red-700 transition-colors font-mono text-xs placeholder:text-zinc-600"
+                    required
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className="w-full mt-1 px-4 py-2 bg-zinc-100 text-zinc-900 font-medium rounded-md hover:bg-white transition-colors cursor-pointer text-sm"
+                >
+                  Finalize Match & Update Ratings
+                </button>
+              </form>
+            </div>
           </div>
 
           {adminMessage.text && (
