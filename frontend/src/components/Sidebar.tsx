@@ -96,6 +96,17 @@ export default function Sidebar() {
               >
                 Leaderboard
               </Link>
+
+              <Link
+                href="/contests"
+                className={`uppercase tracking-widest text-[11px] font-bold transition-all border-l-2 pl-4 py-1 flex items-center gap-3 ${
+                  pathname === "/contests"
+                    ? "border-white text-white"
+                    : "border-transparent text-zinc-500 hover:text-zinc-300"
+                }`}
+              >
+                Contest Log
+              </Link>
             </div>
 
             <div className="space-y-4">

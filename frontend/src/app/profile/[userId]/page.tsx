@@ -174,10 +174,14 @@ export default function ProfilePage() {
       <nav className="border-b border-zinc-800 bg-zinc-950/50 backdrop-blur-sm sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-6 h-14 flex items-center justify-between">
           <Link
-            href="/"
-            className="flex items-center text-sm font-medium text-zinc-400 hover:text-white transition-colors"
+            href="/leaderboard"
+            className="flex items-center gap-2 w-fit text-zinc-500 hover:text-indigo-400 transition-all text-xs font-mono font-bold uppercase tracking-[0.2em] my-8 group"
           >
-            <ArrowLeft className="w-4 h-4 mr-2" /> Back
+            <ArrowLeft
+              size={14}
+              className="group-hover:-translate-x-1 transition-transform"
+            />
+            Return to Directory
           </Link>
           <div className="flex items-center gap-3">
             <div
