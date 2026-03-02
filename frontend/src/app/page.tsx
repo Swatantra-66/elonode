@@ -4,12 +4,11 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   Search,
-  Server,
-  Shield,
-  Activity,
   UserPlus,
   Trophy,
   Swords,
+  Users,
+  TrendingUp,
 } from "lucide-react";
 
 import { Orbitron } from "next/font/google";
@@ -180,7 +179,7 @@ export default function Home() {
 
           <p className="text-zinc-400 text-sm md:text-base max-w-xl mx-auto leading-relaxed">
             The central engine automatically recalculates player Elo ratings,
-            global percentiles, and skill tiers after every finalized bout.
+            global percentiles, and skill tiers after every finalized contest.
           </p>
         </div>
 
@@ -339,32 +338,40 @@ export default function Home() {
           )}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-10 border-t border-zinc-800/50">
-          <div className="space-y-2">
-            <Server className="text-zinc-400 w-5 h-5" />
-            <h3 className="font-medium text-zinc-100 text-sm">
-              Predictable Scaling
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 border-t border-zinc-800/60 pt-12">
+          <div className="space-y-3">
+            <Trophy className="text-zinc-400 w-5 h-5 mb-4" />
+            <h3 className="text-zinc-100 font-mono font-bold text-xs uppercase tracking-widest whitespace-nowrap">
+              Global Leaderboard
             </h3>
-            <p className="text-sm text-zinc-500">
-              Deployed on Render with Go 1.25 runtime.
+            <p className="text-zinc-500 text-sm leading-relaxed">
+              Real-time synchronization of node ratings, dynamically organizing
+              participants into competitive tiers based on cumulative system
+              performance.
             </p>
           </div>
 
-          <div className="space-y-2">
-            <Activity className="text-zinc-400 w-5 h-5" />
-            <h3 className="font-medium text-zinc-100 text-sm">Live Sync</h3>
-            <p className="text-sm text-zinc-500">
-              Real-time data streaming via Supabase Postgres.
+          <div className="space-y-3">
+            <Users className="text-zinc-400 w-5 h-5 mb-4" />
+            <h3 className="text-zinc-100 font-mono font-bold text-xs uppercase tracking-widest whitespace-nowrap">
+              Dynamic Match Scaling
+            </h3>
+            <p className="text-zinc-500 text-sm leading-relaxed">
+              Process everything from standard 1v1 bouts to massive multi-node
+              leagues, automatically resolving Elo distribution based on final
+              standings.
             </p>
           </div>
 
-          <div className="space-y-2">
-            <Shield className="text-zinc-400 w-5 h-5" />
-            <h3 className="font-medium text-zinc-100 text-sm">
-              ACID Compliance
+          <div className="space-y-3">
+            <TrendingUp className="text-zinc-400 w-5 h-5 mb-4" />
+            <h3 className="text-zinc-100 font-mono font-bold text-xs uppercase tracking-widest whitespace-nowrap">
+              Deep Node Analytics
             </h3>
-            <p className="text-sm text-zinc-500">
-              Relational integrity for all contest metrics.
+            <p className="text-zinc-500 text-sm leading-relaxed">
+              Individual profile tracking featuring interactive performance
+              trajectories and comprehensive historical match logs for every
+              finalized contest.
             </p>
           </div>
         </div>
