@@ -3,7 +3,6 @@ package handlers
 import (
 	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -14,6 +13,11 @@ import (
 
 type Handler struct {
 	db *gorm.DB
+}
+
+type FinalizeParticipant struct {
+	UserID string `json:"user_id"`
+	Rank   int    `json:"rank"`
 }
 
 func New(db *gorm.DB) *Handler {
@@ -85,29 +89,34 @@ func (h *Handler) CreateUser(c *gin.Context) {
 	c.JSON(http.StatusCreated, user)
 }
 
-type createContestReq struct {
-	Name string `json:"name" binding:"required"`
-	Date string `json:"date"`
-}
-
 func (h *Handler) CreateContest(c *gin.Context) {
-	var req createContestReq
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	var input struct {
+		Name              string `json:"name"`
+		TotalParticipants int    `json:"total_participants"`
+	}
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(400, gin.H{"error": "Invalid request body"})
 		return
 	}
-	date := time.Now()
-	if req.Date != "" {
-		if t, err := time.Parse(time.RFC3339, req.Date); err == nil {
-			date = t
-		}
+
+	participants := input.TotalParticipants
+	if participants < 2 {
+		participants = 2
 	}
-	contest := models.Contest{Name: req.Name, Date: date}
-	if err := h.db.Create(&contest).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+
+	newContest := models.Contest{
+		Name:              input.Name,
+		TotalParticipants: participants,
+		Finalized:         false,
+	}
+
+	if err := h.db.Create(&newContest).Error; err != nil {
+		c.JSON(500, gin.H{"error": "Failed to generate contest node"})
 		return
 	}
-	c.JSON(http.StatusCreated, contest)
+
+	c.JSON(201, newContest)
 }
 
 type participantEntry struct {
@@ -140,7 +149,6 @@ func (h *Handler) FinalizeContest(c *gin.Context) {
 		return
 	}
 
-	//Extract all User IDs for bulk fetching
 	userIDs := make([]string, total)
 	for i, entry := range entries {
 		userIDs[i] = entry.UserID
@@ -152,7 +160,6 @@ func (h *Handler) FinalizeContest(c *gin.Context) {
 			return err
 		}
 
-		//create a map for O(1) lookups
 		userMap := make(map[string]*models.User)
 		for i := range users {
 			userMap[fmt.Sprint(users[i].ID)] = &users[i]
@@ -244,4 +251,15 @@ func (h *Handler) GetStats(c *gin.Context) {
 		"average_elo":     int(avgElo),
 		"active_contests": activeContests,
 	})
+}
+
+func (h *Handler) GetContests(c *gin.Context) {
+	var contests []map[string]interface{}
+
+	if err := h.db.Table("contests").Order("created_at DESC").Find(&contests).Error; err != nil {
+		c.JSON(500, gin.H{"error": "Could not fetch contests"})
+		return
+	}
+
+	c.JSON(200, contests)
 }

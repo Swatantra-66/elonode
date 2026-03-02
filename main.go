@@ -62,6 +62,7 @@ func main() {
 
 		api.GET("/health", h.GetHealth)
 		api.GET("/stats", h.GetStats)
+		api.GET("/contests", h.GetContests)
 	}
 
 	port := os.Getenv("PORT")
