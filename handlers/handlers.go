@@ -29,6 +29,17 @@ func (h *Handler) GetUser(c *gin.Context) {
 	c.JSON(http.StatusOK, user)
 }
 
+func (h *Handler) GetUsers(c *gin.Context) {
+	var users []models.User
+
+	if err := h.db.Order("current_rating desc").Find(&users).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch users"})
+		return
+	}
+
+	c.JSON(http.StatusOK, users)
+}
+
 func (h *Handler) GetRatingHistory(c *gin.Context) {
 	type historyRow struct {
 		models.RatingHistory
@@ -205,5 +216,32 @@ func (h *Handler) FinalizeContest(c *gin.Context) {
 		"message":            "contest finalized",
 		"contest_id":         contestID,
 		"total_participants": total,
+	})
+}
+
+func (h *Handler) GetHealth(c *gin.Context) {
+	sqlDB, err := h.db.DB()
+	if err != nil || sqlDB.Ping() != nil {
+		c.JSON(500, gin.H{"status": "offline"})
+		return
+	}
+	c.JSON(200, gin.H{"status": "connected"})
+}
+
+func (h *Handler) GetStats(c *gin.Context) {
+	var count int64
+	var avgElo float64
+	var activeContests int64
+
+	h.db.Table("users").Count(&count)
+
+	h.db.Table("users").Select("AVG(current_rating)").Row().Scan(&avgElo)
+
+	h.db.Table("contests").Count(&activeContests)
+
+	c.JSON(200, gin.H{
+		"total_nodes":     count,
+		"average_elo":     int(avgElo),
+		"active_contests": activeContests,
 	})
 }
