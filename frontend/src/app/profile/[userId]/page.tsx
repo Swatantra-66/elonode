@@ -281,6 +281,75 @@ export default function ProfilePage() {
             </ResponsiveContainer>
           </div>
         </div>
+
+        <div className="bg-zinc-950 border border-zinc-800 rounded-md overflow-hidden shadow-2xl">
+          <div className="p-4 border-b border-zinc-800 bg-zinc-900/40 flex items-center gap-2">
+            <Activity size={14} className="text-indigo-500" />
+            <h3 className="text-[10px] font-mono font-bold uppercase tracking-[0.3em] text-zinc-400">
+              Recent Terminal Bouts
+            </h3>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="text-[9px] uppercase tracking-widest text-zinc-600 border-b border-zinc-900 bg-zinc-900/20">
+                  <th className="p-4">Bout Designation</th>
+                  <th className="p-4 text-center">Rank</th>
+                  <th className="p-4 text-center">Rating Change</th>
+                  <th className="p-4 text-right">Final Rating</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-900">
+                {history.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={4}
+                      className="p-8 text-center text-zinc-700 font-mono text-[10px] uppercase tracking-widest"
+                    >
+                      No Match Data Synchronized
+                    </td>
+                  </tr>
+                ) : (
+                  history.map((bout, idx) => (
+                    <tr
+                      key={idx}
+                      className="hover:bg-zinc-800/10 transition-colors group"
+                    >
+                      <td className="p-4 font-bold text-zinc-100 uppercase tracking-tight text-[11px]">
+                        {bout.contest_name || "UNREGISTERED_BOUT"}
+                      </td>
+                      <td className="p-4 text-center">
+                        <span
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
+                            bout.rank === 1
+                              ? "bg-emerald-950/30 text-emerald-500 border-emerald-900/50"
+                              : "bg-zinc-900 text-zinc-600 border-zinc-800"
+                          }`}
+                        >
+                          #{bout.rank}
+                        </span>
+                      </td>
+                      <td
+                        className={`p-4 text-center font-mono text-[11px] font-bold ${
+                          bout.rating_change >= 0
+                            ? "text-emerald-500"
+                            : "text-rose-500"
+                        }`}
+                      >
+                        {bout.rating_change >= 0 ? "+" : ""}
+                        {bout.rating_change}
+                      </td>
+                      <td className="p-4 text-right font-mono text-xs text-zinc-100">
+                        {chartData.find((d) => d.contest_id === bout.contest_id)
+                          ?.rating || "---"}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </main>
     </div>
   );
