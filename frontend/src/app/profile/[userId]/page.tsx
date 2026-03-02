@@ -13,6 +13,13 @@ import {
 } from "recharts";
 import { Trophy, Activity, Hash, ArrowLeft } from "lucide-react";
 
+import { Orbitron } from "next/font/google";
+
+const futuristicFont = Orbitron({
+  subsets: ["latin"],
+  weight: ["700"],
+});
+
 interface User {
   id: string;
   name: string;
@@ -186,12 +193,14 @@ export default function ProfilePage() {
       </nav>
 
       <main className="max-w-4xl mx-auto px-6 py-10 space-y-8">
-        <div className="border-b border-zinc-800/60 pb-6">
-          <h1 className="text-2xl font-semibold tracking-tight text-white">
-            System Profile
+        <div className="border-b border-zinc-800/60 pb-8">
+          <h1
+            className={`${futuristicFont.className} text-3xl text-white tracking-widest uppercase`}
+          >
+            Node<span className="text-zinc-600"> Profile</span>
           </h1>
-          <p className="text-zinc-500 text-xs mt-2 font-mono uppercase tracking-tighter">
-            Internal ID: {user.id}
+          <p className="text-zinc-500 text-[10px] mt-3 font-mono uppercase tracking-[0.3em]">
+            Internal ID <span className="text-zinc-400 ml-2">{user.id}</span>
           </p>
         </div>
 
