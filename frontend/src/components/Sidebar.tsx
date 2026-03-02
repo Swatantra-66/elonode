@@ -66,10 +66,12 @@ export default function Sidebar() {
       >
         <div className="flex flex-col h-full p-8">
           <h2
-            className={`text-2xl text-white mb-10 tracking-wider uppercase whitespace-nowrap ${futuristicFont.className}`}
+            className={`text-2xl text-white tracking-wider uppercase whitespace-nowrap ${futuristicFont.className}`}
           >
             Elo<span className="text-zinc-600">Node</span>
           </h2>
+
+          <div className="w-full h-[1px] bg-zinc-800/80 mt-6 mb-8" />
 
           <nav className="flex flex-col gap-8 flex-1">
             <div className="space-y-4">
@@ -96,7 +98,6 @@ export default function Sidebar() {
               >
                 Leaderboard
               </Link>
-
               <Link
                 href="/contests"
                 className={`uppercase tracking-widest text-[11px] font-bold transition-all border-l-2 pl-4 py-1 flex items-center gap-3 ${
@@ -106,6 +107,16 @@ export default function Sidebar() {
                 }`}
               >
                 Contest Log
+              </Link>
+              <Link
+                href="/docs"
+                className={`uppercase tracking-widest text-[11px] font-bold transition-all border-l-2 pl-4 py-1 flex items-center gap-3 ${
+                  pathname === "/docs"
+                    ? "border-white text-white"
+                    : "border-transparent text-zinc-500 hover:text-zinc-300"
+                }`}
+              >
+                System Docs
               </Link>
             </div>
 
