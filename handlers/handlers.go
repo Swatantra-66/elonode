@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -19,6 +21,12 @@ type Handler struct {
 type FinalizeParticipant struct {
 	UserID string `json:"user_id"`
 	Rank   int    `json:"rank"`
+}
+
+type WebhookPayload struct {
+	Event       string `json:"event"`
+	ContestID   string `json:"contest_id"`
+	ContestName string `json:"contest_name"`
 }
 
 func New(db *gorm.DB) *Handler {
@@ -276,6 +284,12 @@ func (h *Handler) DeleteContest(c *gin.Context) {
 		return
 	}
 
+	var contest models.Contest
+	contestName := "Unknown Contest"
+	if err := h.db.Where("id = ?", contestID).First(&contest).Error; err == nil {
+		contestName = contest.Name
+	}
+
 	err := h.db.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("contest_id = ?", contestID).Delete(&models.RatingHistory{}).Error; err != nil {
 			return err
@@ -293,5 +307,35 @@ func (h *Handler) DeleteContest(c *gin.Context) {
 		return
 	}
 
+	FireWebhook(WebhookPayload{
+		Event:       "CONTEST_DELETED",
+		ContestName: contestName,
+		ContestID:   contestID,
+	})
+
 	c.JSON(200, gin.H{"message": "contest and associated logs purged"})
+}
+
+func FireWebhook(payload WebhookPayload) {
+	webhookURL := os.Getenv("WEBHOOK_URL")
+	if webhookURL == "" {
+		fmt.Println("SYSTEM NOTE: WEBHOOK_URL not set. Skipping automation.")
+		return
+	}
+
+	jsonData, err := json.Marshal(payload)
+	if err != nil {
+		fmt.Println("SYSTEM ERROR: Failed to marshal webhook payload:", err)
+		return
+	}
+
+	go func() {
+		resp, err := http.Post(webhookURL, "application/json", bytes.NewBuffer(jsonData))
+		if err != nil {
+			fmt.Println("SYSTEM ERROR: Failed to reach webhook:", err)
+			return
+		}
+		defer resp.Body.Close()
+		fmt.Printf("SYSTEM LOG: Webhook Triggered. Status: %d\n", resp.StatusCode)
+	}()
 }
