@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Contest Rating Engine",
+  title: "elonode",
   description:
     "A high-performance percentile tracking system built with Go and Next.js",
 };
