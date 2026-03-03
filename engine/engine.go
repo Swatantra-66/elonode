@@ -1,4 +1,3 @@
-// Package engine implements the core percentile-based rating algorithm.
 package engine
 
 import (
@@ -7,7 +6,6 @@ import (
 	"github.com/Swatantra-66/contest-rating-system/models"
 )
 
-// Bracket maps a minimum-percentile threshold to a standard performance rating.
 type Bracket struct {
 	MinPercentile float64
 	Performance   int
