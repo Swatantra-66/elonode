@@ -1,10 +1,10 @@
-# Contest Rating System
+# ELONODE
 
 A high-performance, full-stack application designed to track user ratings and percentiles across competitive programming or 1v1 match environments. Built with a decoupled architecture, it features a custom rating engine that calculates performance trajectories and stores historical match data.
 
 ## Live Demo
 
-- **Frontend:** [https://contest-rating.vercel.app](https://contest-rating.vercel.app/)
+- **Frontend:** [https://elonode.vercel.app](https://elonode.vercel.app/)
 - **Backend API:** Hosted on Render
 - **Database:** Supabase (PostgreSQL)
 
