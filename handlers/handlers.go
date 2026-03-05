@@ -55,6 +55,15 @@ func (h *Handler) GetUsers(c *gin.Context) {
 	c.JSON(http.StatusOK, users)
 }
 
+func (h *Handler) GetContest(c *gin.Context) {
+	var contest models.Contest
+	if err := h.db.First(&contest, "id = ?", c.Param("id")).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "contest not found"})
+		return
+	}
+	c.JSON(http.StatusOK, contest)
+}
+
 func (h *Handler) GetRatingHistory(c *gin.Context) {
 	type historyRow struct {
 		models.RatingHistory
@@ -358,4 +367,15 @@ func FireWebhook(payload WebhookPayload) {
 		defer resp.Body.Close()
 		fmt.Printf("SYSTEM LOG: Webhook Triggered. Status: %d\n", resp.StatusCode)
 	}()
+}
+
+func (h *Handler) GetGlobalHistory(c *gin.Context) {
+	var histories []models.RatingHistory
+
+	if err := h.db.Order("created_at desc").Find(&histories).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch global rating history"})
+		return
+	}
+
+	c.JSON(http.StatusOK, histories)
 }
