@@ -108,6 +108,18 @@ export default function Sidebar() {
               >
                 Contest Log
               </Link>
+
+              <Link
+                href="/history"
+                className={`uppercase tracking-widest text-[11px] font-bold transition-all border-l-2 pl-4 py-1 flex items-center gap-3 ${
+                  pathname === "/history"
+                    ? "border-white text-white"
+                    : "border-transparent text-zinc-500 hover:text-zinc-300"
+                }`}
+              >
+                Rating History
+              </Link>
+
               <Link
                 href="/docs"
                 className={`uppercase tracking-widest text-[11px] font-bold transition-all border-l-2 pl-4 py-1 flex items-center gap-3 ${
