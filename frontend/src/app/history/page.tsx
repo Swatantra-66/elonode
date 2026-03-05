@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Orbitron } from "next/font/google";
-import { Clock, ArrowRight } from "lucide-react"; // Added ArrowRight for the button
+import { Clock, ArrowRight } from "lucide-react";
 
 const futuristicFont = Orbitron({
   subsets: ["latin"],
