@@ -128,7 +128,7 @@ export default function Leaderboard() {
       <div className="bg-zinc-950 border border-zinc-800 rounded-xl overflow-hidden shadow-2xl">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 border-b border-zinc-800 bg-zinc-900/20">
           <div className="flex items-center gap-4">
-            <Trophy className="w-6 h-6 text-zinc-100" />
+            <Trophy className="w-6 h-6 text-indigo-500" />
             <h2
               className={`${futuristicFont.className} text-xl text-white tracking-widest uppercase`}
             >
