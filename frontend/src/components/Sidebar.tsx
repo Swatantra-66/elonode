@@ -5,6 +5,7 @@ import { Menu, X, Database, Zap, Trophy } from "lucide-react";
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { Orbitron } from "next/font/google";
+import { UserButton, SignOutButton } from "@clerk/nextjs";
 
 const futuristicFont = Orbitron({
   subsets: ["latin"],
@@ -64,7 +65,7 @@ export default function Sidebar() {
           isOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div className="flex flex-col h-full p-8">
+        <div className="flex flex-col h-full p-8 overflow-y-auto">
           <h2
             className={`text-2xl text-white tracking-wider uppercase whitespace-nowrap ${futuristicFont.className}`}
           >
@@ -196,11 +197,15 @@ export default function Sidebar() {
             </p>
           </div>
 
-          <div className="pt-6 border-t border-zinc-900 mt-auto">
-            <div className="flex items-center gap-3 px-2">
+          <div className="mt-auto pt-6">
+            <div className="flex items-center gap-3 px-2 mb-6 border-t border-zinc-900 pt-6">
               <div className="relative">
                 <div
-                  className={`w-2.5 h-2.5 rounded-full ${isOnline ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]"}`}
+                  className={`w-2.5 h-2.5 rounded-full ${
+                    isOnline
+                      ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"
+                      : "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]"
+                  }`}
                 />
                 {isOnline && (
                   <div className="absolute inset-0 w-2.5 h-2.5 bg-emerald-500 rounded-full animate-ping opacity-75" />
@@ -217,6 +222,54 @@ export default function Sidebar() {
                     ? "RENDER :: DB_CONNECTED"
                     : "CONNECTION_ERROR :: 500"}
                 </p>
+              </div>
+            </div>
+
+            <div className="border-t border-zinc-900 pt-4 px-2 space-y-4">
+              <SignOutButton>
+                <button className="flex items-center gap-3 w-full p-2 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 border border-transparent hover:border-red-500/30 transition-all rounded-md group cursor-pointer">
+                  {" "}
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="group-hover:-translate-x-1 transition-transform"
+                  >
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                    <polyline points="16 17 21 12 16 7"></polyline>
+                    <line x1="21" y1="12" x2="9" y2="12"></line>
+                  </svg>
+                  <span className="font-bold tracking-widest uppercase text-[10px]">
+                    System Logout
+                  </span>
+                </button>
+              </SignOutButton>
+
+              <div className="flex items-center gap-3 p-2">
+                <UserButton
+                  appearance={{
+                    elements: {
+                      userButtonAvatarBox:
+                        "w-8 h-8 border border-zinc-700 hover:border-indigo-500 transition-colors",
+                      userButtonPopoverCard:
+                        "bg-zinc-900 border border-zinc-800 shadow-2xl",
+                    },
+                  }}
+                />
+                <div className="flex flex-col">
+                  <span className="text-[9px] text-zinc-500 font-mono uppercase tracking-widest">
+                    System Access
+                  </span>
+                  <span className="text-[10px] text-zinc-300 font-bold tracking-wider uppercase">
+                    Authenticated
+                  </span>
+                </div>
               </div>
             </div>
           </div>
