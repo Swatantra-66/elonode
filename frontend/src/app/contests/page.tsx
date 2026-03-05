@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Orbitron } from "next/font/google";
+import { useUser } from "@clerk/nextjs"; // 👈 Added Clerk hook
 import {
   Zap,
   Copy,
@@ -96,6 +97,7 @@ function SecurityModal({
 }
 
 export default function ContestsPage() {
+  const { user } = useUser(); // 👈 Initialize user hook
   const [contests, setContests] = useState<Contest[]>([]);
   const [loading, setLoading] = useState(true);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -108,6 +110,9 @@ export default function ContestsPage() {
     message: string;
     type: "success" | "error";
   } | null>(null);
+
+  // 🛡️ Define the admin check based on Clerk metadata
+  const isAdmin = user?.publicMetadata?.role === "admin";
 
   useEffect(() => {
     const fetchContests = async () => {
@@ -288,19 +293,22 @@ export default function ContestsPage() {
                           {contest.finalized ? "FINALIZED" : "ACTIVE / PENDING"}
                         </span>
 
-                        <button
-                          onClick={() => {
-                            setDeleteTarget({
-                              id: contest.id,
-                              name: contest.name || "UNREGISTERED_BOUT",
-                            });
-                            setIsModalOpen(true);
-                          }}
-                          className="flex items-center justify-center h-6 px-1.5 text-zinc-600 hover:text-rose-500 hover:bg-rose-500/10 rounded-sm transition-all group-hover:opacity-100 opacity-0 cursor-pointer"
-                          title="Delete Contest"
-                        >
-                          <Trash2 size={14} />
-                        </button>
+                        {/* 🛡️ Added role check logic here */}
+                        {isAdmin && (
+                          <button
+                            onClick={() => {
+                              setDeleteTarget({
+                                id: contest.id,
+                                name: contest.name || "UNREGISTERED_BOUT",
+                              });
+                              setIsModalOpen(true);
+                            }}
+                            className="flex items-center justify-center h-6 px-1.5 text-zinc-600 hover:text-rose-500 hover:bg-rose-500/10 rounded-sm transition-all group-hover:opacity-100 opacity-0 cursor-pointer"
+                            title="Delete Contest"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
