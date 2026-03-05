@@ -1,6 +1,6 @@
 import React from "react";
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Orbitron } from "next/font/google"; // 1. Imported Orbitron
+import { Geist, Geist_Mono, Orbitron } from "next/font/google";
 import Sidebar from "@/components/Sidebar";
 import { ClerkProvider } from "@clerk/nextjs";
 import { dark } from "@clerk/themes";
@@ -18,7 +18,6 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-// 2. Set up Orbitron as a CSS variable just like the Geist fonts
 const orbitron = Orbitron({
   subsets: ["latin"],
   weight: ["700", "900"],
@@ -57,7 +56,6 @@ export default function RootLayout({
             border: "1px solid #27272a",
           },
 
-          // 3. Apply the Orbitron font variable to the header!
           headerTitle: {
             color: "#ffffff",
             fontFamily: "var(--font-orbitron)",
@@ -77,6 +75,11 @@ export default function RootLayout({
           socialButtonsBlockButtonText: {
             color: "#ffffff",
             fontWeight: "600",
+          },
+
+          "socialButtonsProviderIcon--github": {
+            filter: "brightness(0) invert(1)",
+            opacity: "1",
           },
 
           formFieldInput: {
@@ -127,7 +130,6 @@ export default function RootLayout({
       }}
     >
       <html lang="en">
-        {/* 4. Injected the orbitron.variable into the body so Clerk can access it */}
         <body
           className={`${geistSans.variable} ${geistMono.variable} ${orbitron.variable} antialiased flex min-h-screen bg-zinc-950 text-zinc-50 overflow-hidden`}
         >
