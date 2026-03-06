@@ -67,6 +67,11 @@ export default function RootLayout({
             color: "#d4d4d8",
           },
 
+          identityPreviewText: {
+            color: "#e4e4e7",
+            fontWeight: "500",
+          },
+
           socialButtonsBlockButton: {
             backgroundColor: "#27272a",
             border: "1px solid #3f3f46",
@@ -92,6 +97,13 @@ export default function RootLayout({
             color: "#27272a",
           },
 
+          otpCodeFieldInput: {
+            backgroundColor: "#ffffff",
+            borderColor: "#3f3f46",
+            color: "#27272a",
+            fontWeight: "600",
+          },
+
           formFieldLabel: {
             color: "#e4e4e7",
           },
@@ -111,6 +123,13 @@ export default function RootLayout({
           formFieldSuccessText: {
             color: "#10b981",
             fontWeight: "500",
+          },
+
+          formFieldInput__verificationCode: {
+            backgroundColor: "#ffffff",
+            borderColor: "#3f3f46",
+            color: "#27272a",
+            fontWeight: "600",
           },
 
           dividerLine: {
