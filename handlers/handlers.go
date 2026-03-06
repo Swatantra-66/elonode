@@ -87,7 +87,8 @@ func (h *Handler) GetRatingHistory(c *gin.Context) {
 }
 
 type createUserReq struct {
-	Name string `json:"name" binding:"required"`
+	Name     string `json:"name" binding:"required"`
+	ImageURL string `json:"image_url"`
 }
 
 func (h *Handler) CreateUser(c *gin.Context) {
@@ -98,6 +99,7 @@ func (h *Handler) CreateUser(c *gin.Context) {
 	}
 	user := models.User{
 		Name:          req.Name,
+		ImageURL:      req.ImageURL,
 		CurrentRating: 1000,
 		MaxRating:     1000,
 		Tier:          models.TierNewbie,
