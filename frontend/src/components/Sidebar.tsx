@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { Menu, X, Database, Zap, Trophy } from "lucide-react";
+import { Menu, X, Database, Zap, Trophy, Lock } from "lucide-react";
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { Orbitron } from "next/font/google";
-import { UserButton, SignOutButton } from "@clerk/nextjs";
+import { UserButton, SignOutButton, useAuth } from "@clerk/nextjs";
 
 const futuristicFont = Orbitron({
   subsets: ["latin"],
@@ -15,6 +15,10 @@ const futuristicFont = Orbitron({
 export default function Sidebar() {
   const [isOpen, setIsOpen] = useState(false);
   const pathname = usePathname();
+
+  const { userId, isLoaded } = useAuth();
+  const ADMIN_USER_ID = process.env.NEXT_PUBLIC_ADMIN_USER_ID;
+  const isAdmin = isLoaded && userId === ADMIN_USER_ID;
 
   const [stats, setStats] = useState({
     total_nodes: 0,
@@ -66,11 +70,16 @@ export default function Sidebar() {
         }`}
       >
         <div className="flex flex-col h-full p-8 overflow-y-auto">
-          <h2
-            className={`text-2xl text-white tracking-wider uppercase whitespace-nowrap ${futuristicFont.className}`}
+          <Link
+            href="/"
+            className="inline-block transition-opacity hover:opacity-75 cursor-pointer"
           >
-            Elo<span className="text-zinc-600">Node</span>
-          </h2>
+            <h2
+              className={`text-2xl text-white tracking-wider uppercase whitespace-nowrap ${futuristicFont.className}`}
+            >
+              Elo<span className="text-zinc-600">Node</span>
+            </h2>
+          </Link>
 
           <div className="w-full h-[1px] bg-zinc-800/80 mt-6 mb-8" />
 
@@ -79,16 +88,21 @@ export default function Sidebar() {
               <p className="text-[10px] text-zinc-600 font-bold uppercase tracking-[0.3em] mb-4">
                 Core Interface
               </p>
+
               <Link
-                href="/admin"
+                href={isAdmin ? "/admin" : "#"}
                 className={`uppercase tracking-widest text-[11px] font-bold transition-all border-l-2 pl-4 py-1 flex items-center gap-3 ${
                   pathname === "/admin"
                     ? "border-white text-white"
                     : "border-transparent text-zinc-500 hover:text-zinc-300"
                 }`}
               >
-                Admin Panel
+                <span>Admin Panel</span>
+                {!isAdmin && (
+                  <Lock size={12} className="text-zinc-600 mb-0.5" />
+                )}
               </Link>
+
               <Link
                 href="/leaderboard"
                 className={`uppercase tracking-widest text-[11px] font-bold transition-all border-l-2 pl-4 py-1 flex items-center gap-3 ${
