@@ -21,6 +21,7 @@ const (
 type User struct {
 	ID             string    `gorm:"primaryKey;type:uuid;default:gen_random_uuid()" json:"id"`
 	Name           string    `gorm:"not null;index" json:"name"`
+	ImageURL       string    `gorm:"type:text" json:"image_url"`
 	CurrentRating  int       `gorm:"default:1000" json:"current_rating"`
 	MaxRating      int       `gorm:"default:1000" json:"max_rating"`
 	ContestsPlayed int       `gorm:"default:0" json:"contests_played"`
