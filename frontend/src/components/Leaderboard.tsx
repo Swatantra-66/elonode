@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Trophy, Medal, Copy, Check, Search } from "lucide-react";
+import { Trophy, Medal, Copy, Check, Search, Loader2 } from "lucide-react";
 import { Orbitron } from "next/font/google";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { useAuth } from "@clerk/nextjs";
 
 const futuristicFont = Orbitron({
   subsets: ["latin"],
@@ -27,6 +28,10 @@ export default function Leaderboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const { userId, isLoaded } = useAuth();
+  const ADMIN_USER_ID = process.env.NEXT_PUBLIC_ADMIN_USER_ID;
+  const isAdmin = isLoaded && userId === ADMIN_USER_ID;
 
   useEffect(() => {
     const fetchLeaderboard = async () => {
@@ -90,8 +95,9 @@ export default function Leaderboard() {
 
   if (loading)
     return (
-      <div className="text-center text-zinc-500 py-12 animate-pulse">
-        Synchronizing Data...
+      <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center text-zinc-500 font-mono text-sm uppercase tracking-widest gap-4">
+        <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
+        Synchronizing Leaderboard Details
       </div>
     );
 
@@ -115,14 +121,14 @@ export default function Leaderboard() {
   return (
     <div className="w-full max-w-5xl mx-auto mt-8">
       <Link
-        href="/"
+        href={isAdmin ? "/admin" : "/"}
         className="inline-flex items-center gap-2 text-zinc-500 hover:text-indigo-400 transition-colors text-xs font-mono uppercase tracking-widest mb-6 group"
       >
         <ArrowLeft
           size={14}
           className="group-hover:-translate-x-1 transition-transform"
         />
-        Return to Admin Panel
+        {isAdmin ? "Return to Admin Panel" : "Return to Arena"}
       </Link>
 
       <div className="bg-zinc-950 border border-zinc-800 rounded-xl overflow-hidden shadow-2xl">
