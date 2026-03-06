@@ -154,7 +154,7 @@ export default function Leaderboard() {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-zinc-900/50 text-zinc-500 text-[10px] uppercase tracking-[0.2em]">
-                <th className="p-4 font-bold">Rank</th>
+                <th className="py-4 pl-8 pr-4 font-bold">Rank</th>
                 <th className="p-4 font-bold">Identification</th>
                 <th className="p-4 font-bold text-center">Tier</th>
                 <th className="p-4 font-bold text-right">Rating</th>
@@ -166,38 +166,48 @@ export default function Leaderboard() {
               {filteredUsers.map((user) => {
                 const rank = user.globalRankIndex ?? 0;
 
+                let rowClasses = "hover:bg-zinc-800/20 transition-all group";
+                if (rank === 0)
+                  rowClasses =
+                    "bg-gradient-to-r from-amber-500/10 to-transparent hover:from-amber-500/20 transition-all group";
+                else if (rank === 1)
+                  rowClasses =
+                    "bg-gradient-to-r from-zinc-300/10 to-transparent hover:from-zinc-300/20 transition-all group";
+                else if (rank === 2)
+                  rowClasses =
+                    "bg-gradient-to-r from-amber-700/10 to-transparent hover:from-amber-700/20 transition-all group";
+
                 return (
-                  <tr
-                    key={user.id}
-                    className="hover:bg-zinc-800/20 transition-all group"
-                  >
-                    <td className="p-4 flex items-center gap-2 font-mono text-sm text-zinc-400">
-                      {rank === 0 && (
-                        <Medal
-                          size={18}
-                          className="text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.6)]"
-                        />
-                      )}
+                  <tr key={user.id} className={rowClasses}>
+                    <td className="py-4 pl-8 pr-4">
+                      <div className="flex items-center font-mono text-sm text-zinc-400">
+                        {rank === 0 && (
+                          <Medal
+                            size={18}
+                            className="text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.6)]"
+                          />
+                        )}
 
-                      {rank === 1 && (
-                        <Medal
-                          size={18}
-                          className="text-zinc-300 drop-shadow-[0_0_8px_rgba(212,212,216,0.4)]"
-                        />
-                      )}
+                        {rank === 1 && (
+                          <Medal
+                            size={18}
+                            className="text-zinc-300 drop-shadow-[0_0_8px_rgba(212,212,216,0.4)]"
+                          />
+                        )}
 
-                      {rank === 2 && (
-                        <Medal
-                          size={18}
-                          className="text-amber-700 drop-shadow-[0_0_8px_rgba(180,83,9,0.5)]"
-                        />
-                      )}
+                        {rank === 2 && (
+                          <Medal
+                            size={18}
+                            className="text-amber-700 drop-shadow-[0_0_8px_rgba(180,83,9,0.5)]"
+                          />
+                        )}
 
-                      {rank > 2 && (
-                        <span className="w-6 text-center text-xs font-bold text-zinc-600 tracking-widest">
-                          {String(rank + 1).padStart(2, "0")}
-                        </span>
-                      )}
+                        {rank > 2 && (
+                          <span className="w-6 text-center text-xs font-bold text-zinc-600 tracking-widest">
+                            {String(rank + 1).padStart(2, "0")}
+                          </span>
+                        )}
+                      </div>
                     </td>
 
                     <td className="p-4 font-bold uppercase tracking-tight">
@@ -219,7 +229,7 @@ export default function Leaderboard() {
 
                     <td className="p-4 text-right">
                       <div className="flex flex-col items-end">
-                        <span className="font-mono font-bold text-zinc-100 tracking-tighter">
+                        <span className="font-mono font-bold text-lg text-zinc-100 tracking-tighter">
                           {user.current_rating}
                         </span>
 
@@ -249,8 +259,10 @@ export default function Leaderboard() {
 
                     <td className="p-4">
                       <div className="flex items-center gap-2">
-                        <span className="font-mono text-[9px] text-zinc-600 truncate max-w-[80px]">
-                          {user.id}
+                        <span className="font-mono text-[10px] text-zinc-500">
+                          {user.id.length > 12
+                            ? `${user.id.slice(0, 8)}...${user.id.slice(-4)}`
+                            : user.id}
                         </span>
                         <button
                           onClick={() => copyToClipboard(user.id)}
