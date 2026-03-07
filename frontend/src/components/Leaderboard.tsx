@@ -66,22 +66,20 @@ export default function Leaderboard() {
   };
 
   const getTierColor = (tier: string) => {
-    switch (tier.toLowerCase()) {
-      case "newbie":
-        return "text-zinc-500";
-      case "apprentice":
-        return "text-emerald-500";
-      case "specialist":
-        return "text-cyan-500";
-      case "expert":
-        return "text-indigo-500";
-      case "master":
-        return "text-amber-500";
-      case "grandmaster":
-        return "text-red-500";
-      default:
-        return "text-zinc-400";
-    }
+    const normalized = tier?.toLowerCase() || "";
+    if (normalized.includes("newbie"))
+      return "text-zinc-400 border-zinc-700 bg-zinc-900";
+    if (normalized.includes("apprentice"))
+      return "text-emerald-400 border-emerald-900/50 bg-emerald-950/30";
+    if (normalized.includes("specialist"))
+      return "text-cyan-400 border-cyan-900/50 bg-cyan-950/30";
+    if (normalized.includes("expert"))
+      return "text-blue-400 border-blue-900/50 bg-blue-950/30";
+    if (normalized.includes("master") && !normalized.includes("grandmaster"))
+      return "text-purple-400 border-purple-900/50 bg-purple-950/30";
+    if (normalized.includes("grandmaster"))
+      return "text-rose-500 border-rose-900/50 bg-rose-950/30 shadow-[0_0_15px_rgba(244,63,94,0.5)]";
+    return "text-zinc-400 border-zinc-700 bg-zinc-900";
   };
 
   const filteredUsers = users
@@ -128,7 +126,7 @@ export default function Leaderboard() {
           size={14}
           className="group-hover:-translate-x-1 transition-transform"
         />
-        {isAdmin ? "Return to Admin Panel" : "Return to Arena"}
+        {isAdmin ? "Return to Admin Panel" : "Return to Hub"}
       </Link>
 
       <div className="bg-zinc-950 border border-zinc-800 rounded-xl overflow-hidden shadow-2xl">
@@ -227,7 +225,7 @@ export default function Leaderboard() {
 
                     <td className="p-4 text-center">
                       <span
-                        className={`${getTierColor(user.tier)} text-[10px] font-black uppercase px-2 py-1 bg-zinc-900 rounded-sm border border-zinc-800/50`}
+                        className={`${getTierColor(user.tier)} text-[10px] font-black uppercase px-2 py-1 rounded-sm border`}
                       >
                         {user.tier}
                       </span>
