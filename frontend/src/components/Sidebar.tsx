@@ -27,6 +27,19 @@ export default function Sidebar() {
   });
 
   const [isOnline, setIsOnline] = useState(true);
+  const [nodeId, setNodeId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchStoredId = async () => {
+      const storedId = localStorage.getItem("elonode_db_id");
+      if (storedId) {
+        setNodeId(storedId);
+      }
+    };
+
+    fetchStoredId();
+  }, []);
+
   useEffect(() => {
     const fetchSystemData = async () => {
       try {
@@ -104,6 +117,17 @@ export default function Sidebar() {
               </Link>
 
               <Link
+                href="/arena"
+                className={`uppercase tracking-widest text-[11px] font-bold transition-all border-l-2 pl-4 py-1 flex items-center gap-3 ${
+                  pathname === "/arena"
+                    ? "border-white text-white"
+                    : "border-transparent text-zinc-500 hover:text-zinc-300"
+                }`}
+              >
+                Enter Arena
+              </Link>
+
+              <Link
                 href="/leaderboard"
                 className={`uppercase tracking-widest text-[11px] font-bold transition-all border-l-2 pl-4 py-1 flex items-center gap-3 ${
                   pathname === "/leaderboard"
@@ -113,6 +137,7 @@ export default function Sidebar() {
               >
                 Leaderboard
               </Link>
+
               <Link
                 href="/contests"
                 className={`uppercase tracking-widest text-[11px] font-bold transition-all border-l-2 pl-4 py-1 flex items-center gap-3 ${
@@ -133,17 +158,6 @@ export default function Sidebar() {
                 }`}
               >
                 Rating History
-              </Link>
-
-              <Link
-                href="/docs"
-                className={`uppercase tracking-widest text-[11px] font-bold transition-all border-l-2 pl-4 py-1 flex items-center gap-3 ${
-                  pathname === "/docs"
-                    ? "border-white text-white"
-                    : "border-transparent text-zinc-500 hover:text-zinc-300"
-                }`}
-              >
-                System Docs
               </Link>
             </div>
 
