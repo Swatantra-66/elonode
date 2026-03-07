@@ -23,7 +23,7 @@ const futuristicFont = Orbitron({
 interface NodeUser {
   id: string;
   name: string;
-  image_url?: string; // <-- ADDED: Database image url
+  image_url?: string;
   current_rating: number;
   contests_played: number;
   tier: string;
