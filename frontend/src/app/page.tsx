@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, ReactNode } from "react";
 import Link from "next/link";
 import { useUser, UserButton } from "@clerk/nextjs";
 import { Orbitron } from "next/font/google";
@@ -17,12 +17,54 @@ import {
   ChevronDown,
 } from "lucide-react";
 import UnicornScene from "unicornstudio-react";
-import { motion } from "framer-motion";
 
 const futuristicFont = Orbitron({
   subsets: ["latin"],
   weight: ["400", "700", "900"],
 });
+
+const FadeIn = ({
+  children,
+  delay = 0,
+  yOffset = 40,
+  className = "",
+}: {
+  children: ReactNode;
+  delay?: number;
+  yOffset?: number;
+  className?: string;
+}) => {
+  const [isVisible, setVisible] = useState(false);
+  const domRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          setVisible(true);
+          observer.unobserve(entry.target);
+        }
+      });
+    });
+
+    if (domRef.current) observer.observe(domRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div
+      ref={domRef}
+      className={`transition-all duration-[800ms] ease-out ${className}`}
+      style={{
+        opacity: isVisible ? 1 : 0,
+        transform: isVisible ? "translateY(0)" : `translateY(${yOffset}px)`,
+        transitionDelay: `${delay}ms`,
+      }}
+    >
+      {children}
+    </div>
+  );
+};
 
 export default function NodeHub() {
   const { user, isLoaded } = useUser();
@@ -107,6 +149,14 @@ export default function NodeHub() {
           ::-webkit-scrollbar-track { background: #09090b; }
           ::-webkit-scrollbar-thumb { background: #27272a; border-radius: 4px; }
           ::-webkit-scrollbar-thumb:hover { background: #3f3f46; }
+
+          @keyframes fadeDown {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+          }
+          .animate-fade-down {
+            animation: fadeDown 0.8s ease-out forwards;
+          }
         `,
         }}
       />
@@ -128,18 +178,13 @@ export default function NodeHub() {
 
       <div className="relative z-10 w-full overflow-x-hidden">
         <section className="relative w-full h-screen flex flex-col justify-between pointer-events-none">
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, ease: "easeOut" }}
-            className="absolute top-8 left-8 right-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 pointer-events-auto"
-          >
+          <div className="absolute top-8 left-8 right-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 pointer-events-auto animate-fade-down">
             <div className="flex items-center gap-3 px-4 py-2.5 bg-zinc-900/80 backdrop-blur-md rounded-xl border border-zinc-800 shadow-[0_8px_30px_rgb(0,0,0,0.5)]">
               <UserButton
                 appearance={{
                   elements: {
                     userButtonAvatarBox:
-                      "w-9 h-9 border-2 border-indigo-500/50 hover:border-indigo-400 transition-colors", // Scaled to w-9
+                      "w-9 h-9 border-2 border-indigo-500/50 hover:border-indigo-400 transition-colors",
                   },
                 }}
               />
@@ -188,35 +233,31 @@ export default function NodeHub() {
                 System Docs
               </Link>
             </div>
-          </motion.div>
+          </div>
 
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 1, duration: 1 }}
-            className="absolute bottom-12 left-0 right-0 flex justify-center pointer-events-auto"
+          <div
+            className="absolute bottom-6 left-0 right-0 flex justify-center pointer-events-auto animate-fade-down"
+            style={{
+              animationDelay: "1s",
+              opacity: 0,
+              animationFillMode: "forwards",
+            }}
           >
             <button
               onClick={handleScroll}
               className="group flex flex-col items-center gap-2 text-zinc-500 hover:text-white transition-colors cursor-pointer"
             >
               <span className="text-[10px] font-mono uppercase tracking-[0.3em]">
-                Initialize Docs
+                Initialize Info
               </span>
               <ChevronDown className="w-5 h-5 animate-bounce text-zinc-400 group-hover:text-indigo-400" />
             </button>
-          </motion.div>
+          </div>
         </section>
 
         <section className="w-full bg-zinc-950 border-t border-zinc-800 shadow-[0_-20px_50px_rgba(0,0,0,0.8)] pt-24 pb-32 pointer-events-auto">
           <div className="max-w-6xl mx-auto px-6">
-            <motion.div
-              initial={{ opacity: 0, y: 40 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: "-100px" }}
-              transition={{ duration: 0.7, ease: "easeOut" }}
-              className="text-center mb-20 space-y-6"
-            >
+            <FadeIn className="text-center mb-20 space-y-6">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-mono font-bold uppercase tracking-widest">
                 <Zap size={12} /> System Architecture
               </div>
@@ -233,15 +274,13 @@ export default function NodeHub() {
                 rating algorithm. Participants battle in multi-node domains to
                 secure placement on the global hierarchy.
               </p>
-            </motion.div>
+            </FadeIn>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-32">
-              <motion.div
-                initial={{ opacity: 0, y: 50 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: "-50px" }}
-                transition={{ duration: 0.5, delay: 0.1 }}
-                className="bg-zinc-900/40 border border-zinc-800 p-8 rounded-2xl hover:border-indigo-500/50 hover:bg-zinc-900/60 transition-all group"
+              <FadeIn
+                delay={100}
+                yOffset={50}
+                className="bg-zinc-900/40 border border-zinc-800 p-8 rounded-2xl hover:border-indigo-500/50 hover:bg-zinc-900/60 transition-all group h-full"
               >
                 <div className="w-12 h-12 bg-indigo-500/10 rounded-xl flex items-center justify-center border border-indigo-500/20 mb-6">
                   <Cpu className="text-indigo-400 w-6 h-6 group-hover:scale-110 transition-transform" />
@@ -255,14 +294,12 @@ export default function NodeHub() {
                   Ratings are calculated mathematically via Go-routines using
                   dynamic percentile brackets to assure competitive integrity.
                 </p>
-              </motion.div>
+              </FadeIn>
 
-              <motion.div
-                initial={{ opacity: 0, y: 50 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: "-50px" }}
-                transition={{ duration: 0.5, delay: 0.2 }}
-                className="bg-zinc-900/40 border border-zinc-800 p-8 rounded-2xl hover:border-amber-500/50 hover:bg-zinc-900/60 transition-all group"
+              <FadeIn
+                delay={250}
+                yOffset={50}
+                className="bg-zinc-900/40 border border-zinc-800 p-8 rounded-2xl hover:border-amber-500/50 hover:bg-zinc-900/60 transition-all group h-full"
               >
                 <div className="w-12 h-12 bg-amber-500/10 rounded-xl flex items-center justify-center border border-amber-500/20 mb-6">
                   <Network className="text-amber-400 w-6 h-6 group-hover:scale-110 transition-transform" />
@@ -276,14 +313,12 @@ export default function NodeHub() {
                   Challenge the grid via 1v1 duels or multi-participant Royale
                   events. Data is synchronized continuously to the frontend.
                 </p>
-              </motion.div>
+              </FadeIn>
 
-              <motion.div
-                initial={{ opacity: 0, y: 50 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: "-50px" }}
-                transition={{ duration: 0.5, delay: 0.3 }}
-                className="bg-zinc-900/40 border border-zinc-800 p-8 rounded-2xl hover:border-cyan-500/50 hover:bg-zinc-900/60 transition-all group"
+              <FadeIn
+                delay={400}
+                yOffset={50}
+                className="bg-zinc-900/40 border border-zinc-800 p-8 rounded-2xl hover:border-cyan-500/50 hover:bg-zinc-900/60 transition-all group h-full"
               >
                 <div className="w-12 h-12 bg-cyan-500/10 rounded-xl flex items-center justify-center border border-cyan-500/20 mb-6">
                   <Shield className="text-cyan-400 w-6 h-6 group-hover:scale-110 transition-transform" />
@@ -298,14 +333,11 @@ export default function NodeHub() {
                   trajectory and specific rating deviations in your Node
                   Profile.
                 </p>
-              </motion.div>
+              </FadeIn>
             </div>
 
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              whileInView={{ opacity: 1, scale: 1 }}
-              viewport={{ once: true, margin: "-50px" }}
-              transition={{ duration: 0.6 }}
+            <FadeIn
+              yOffset={30}
               className="bg-zinc-900/20 border border-zinc-800/50 rounded-2xl p-8 md:p-12"
             >
               <div className="text-center mb-10">
@@ -370,7 +402,7 @@ export default function NodeHub() {
                   </div>
                 ))}
               </div>
-            </motion.div>
+            </FadeIn>
           </div>
 
           <footer className="w-full mt-24 text-center">
