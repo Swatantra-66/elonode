@@ -515,7 +515,7 @@ export default function NodeHub() {
           <footer className="w-full mt-24 text-center">
             <div className="flex items-center justify-center gap-2 text-zinc-600 font-mono text-[10px] uppercase tracking-widest">
               <Terminal size={12} />
-              <span>ELONODE CORE ENGINE v1.0.0</span>
+              <span>ELONODE CORE ENGINE v1.1</span>
             </div>
           </footer>
         </section>
