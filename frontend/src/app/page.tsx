@@ -38,14 +38,17 @@ const FadeIn = ({
   const domRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          setVisible(true);
-          observer.unobserve(entry.target);
-        }
-      });
-    });
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setVisible(true);
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { rootMargin: "0px 0px -50px 0px" },
+    );
 
     if (domRef.current) observer.observe(domRef.current);
     return () => observer.disconnect();
@@ -54,10 +57,12 @@ const FadeIn = ({
   return (
     <div
       ref={domRef}
-      className={`transition-all duration-[800ms] ease-out ${className}`}
+      className={`transition-all duration-[800ms] ease-out hardware-accelerated ${className}`}
       style={{
         opacity: isVisible ? 1 : 0,
-        transform: isVisible ? "translateY(0)" : `translateY(${yOffset}px)`,
+        transform: isVisible
+          ? "translateY(0) translateZ(0)"
+          : `translateY(${yOffset}px) translateZ(0)`,
         transitionDelay: `${delay}ms`,
       }}
     >
@@ -144,15 +149,23 @@ export default function NodeHub() {
             opacity: 0 !important;
             pointer-events: none !important;
           }
-          html { scroll-behavior: smooth; }
+          html { 
+            scroll-behavior: smooth; 
+            will-change: scroll-position;
+          }
+          .hardware-accelerated {
+            transform: translateZ(0);
+            backface-visibility: hidden;
+            perspective: 1000px;
+          }
           ::-webkit-scrollbar { width: 8px; }
           ::-webkit-scrollbar-track { background: #09090b; }
           ::-webkit-scrollbar-thumb { background: #27272a; border-radius: 4px; }
           ::-webkit-scrollbar-thumb:hover { background: #3f3f46; }
 
           @keyframes fadeDown {
-            from { opacity: 0; transform: translateY(-20px); }
-            to { opacity: 1; transform: translateY(0); }
+            from { opacity: 0; transform: translateY(-20px) translateZ(0); }
+            to { opacity: 1; transform: translateY(0) translateZ(0); }
           }
           .animate-fade-down {
             animation: fadeDown 0.8s ease-out forwards;
@@ -161,19 +174,20 @@ export default function NodeHub() {
         }}
       />
 
-      <div className="fixed inset-y-0 right-0 left-0 md:left-64 -z-10 h-screen overflow-hidden pointer-events-none bg-black">
-        {" "}
+      <div
+        className="fixed inset-y-0 right-0 left-0 md:left-64 -z-10 h-screen overflow-hidden pointer-events-none bg-black hardware-accelerated"
+        style={{ willChange: "transform" }}
+      >
         <div className="absolute top-0 left-0 w-full h-[calc(100vh+80px)]">
-          {" "}
           <UnicornScene
             projectId="iWEVjdOYv0tYrCvCauok"
             width="100%"
             height="100%"
             scale={1}
-            dpi={1.5}
+            dpi={1}
             sdkUrl="https://cdn.jsdelivr.net/gh/hiunicornstudio/unicornstudio.js@2.1.2/dist/unicornStudio.umd.js"
-          />{" "}
-        </div>{" "}
+          />
+        </div>
       </div>
 
       <div className="relative z-10 w-full overflow-x-hidden">
@@ -190,11 +204,9 @@ export default function NodeHub() {
               />
               <div className="flex flex-col">
                 <span className="text-[9px] text-zinc-500 font-mono uppercase tracking-widest">
-                  {" "}
                   Active Node
                 </span>
                 <span className="text-[13px] font-bold text-white uppercase tracking-wider">
-                  {" "}
                   {user?.username || user?.firstName || "Unknown"}
                 </span>
               </div>
@@ -227,9 +239,9 @@ export default function NodeHub() {
 
               <Link
                 href="/docs"
-                className="flex items-center gap-2 px-4 py-2 bg-zinc-900/80 backdrop-blur-md text-zinc-100 font-mono text-[11px] font-bold uppercase tracking-widest rounded-lg border border-zinc-700 shadow-[0_3px_0_rgba(63,63,70,0.5)] hover:bg-zinc-800 hover:shadow-[0_1px_0_rgba(63,63,70,0.5)] hover:translate-y-[2px] active:shadow-none active:translate-y-[3px] transition-all cursor-pointer"
+                className="flex items-center gap-2 px-4 py-2 bg-zinc-900/80 backdrop-blur-md text-zinc-100 font-mono text-[11px] font-bold uppercase tracking-widest rounded-lg border border-blue-500/50 shadow-[0_3px_0_rgba(59,130,246,0.5)] hover:bg-blue-500/20 hover:shadow-[0_1px_0_rgba(59,130,246,0.5)] hover:translate-y-[2px] active:shadow-none active:translate-y-[3px] transition-all cursor-pointer"
               >
-                <Terminal size={14} className="text-zinc-400" />
+                <Terminal size={14} className="text-blue-400" />
                 System Docs
               </Link>
             </div>
@@ -255,7 +267,7 @@ export default function NodeHub() {
           </div>
         </section>
 
-        <section className="w-full bg-zinc-950 border-t border-zinc-800 shadow-[0_-20px_50px_rgba(0,0,0,0.8)] pt-24 pb-32 pointer-events-auto">
+        <section className="w-full bg-zinc-950 border-t border-zinc-800 shadow-[0_-20px_50px_rgba(0,0,0,0.8)] pt-24 pb-32 pointer-events-auto hardware-accelerated">
           <div className="max-w-6xl mx-auto px-6">
             <FadeIn className="text-center mb-20 space-y-6">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-mono font-bold uppercase tracking-widest">
@@ -408,7 +420,7 @@ export default function NodeHub() {
           <footer className="w-full mt-24 text-center">
             <div className="flex items-center justify-center gap-2 text-zinc-600 font-mono text-[10px] uppercase tracking-widest">
               <Terminal size={12} />
-              <span>ELONODE CORE ENGINE v1.0.0</span>
+              <span>ELONODE CORE ENGINE v1.0</span>
             </div>
           </footer>
         </section>
