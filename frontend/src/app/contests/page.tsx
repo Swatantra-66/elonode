@@ -14,10 +14,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 
-const futuristicFont = Orbitron({
-  subsets: ["latin"],
-  weight: ["700"],
-});
+const futuristicFont = Orbitron({ subsets: ["latin"], weight: ["700"] });
 
 interface Contest {
   name?: string;
@@ -37,9 +34,7 @@ function SecurityModal({
   onConfirm: (key: string) => void;
 }) {
   const [key, setKey] = useState("");
-
   if (!isOpen) return null;
-
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <div
@@ -96,6 +91,49 @@ function SecurityModal({
   );
 }
 
+function formatDate(dateStr: string): string {
+  try {
+    const d = new Date(dateStr);
+    const months = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
+    ];
+    const month = months[d.getMonth()];
+    const day = d.getDate();
+    const year = d.getFullYear();
+    const h = d.getHours();
+    const m = String(d.getMinutes()).padStart(2, "0");
+    const ampm = h >= 12 ? "PM" : "AM";
+    const hour = String(h % 12 || 12).padStart(2, "0");
+    return `${month} ${day}, ${year} · ${hour}:${m} ${ampm}`;
+  } catch {
+    return dateStr;
+  }
+}
+
+function ContestDate({ dateStr }: { dateStr?: string }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+  if (!mounted || !dateStr) return <span className="text-zinc-700">—</span>;
+  return (
+    <span className="font-mono text-[10px] text-zinc-500">
+      {formatDate(dateStr)}
+    </span>
+  );
+}
+
 export default function ContestsPage() {
   const { user } = useUser();
   const { getToken } = useAuth();
@@ -115,26 +153,17 @@ export default function ContestsPage() {
   const isAdmin = user?.publicMetadata?.role === "admin";
 
   useEffect(() => {
-    const fetchContests = async () => {
-      try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}contests`);
-        if (res.ok) {
-          const data = await res.json();
-          setContests(data);
-        }
-      } catch (err) {
-        console.error("Failed to fetch contests", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchContests();
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}contests`)
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data) => setContests(Array.isArray(data) ? data : []))
+      .catch(console.error)
+      .finally(() => setLoading(false));
   }, []);
 
   useEffect(() => {
     if (notification) {
-      const timer = setTimeout(() => setNotification(null), 4000);
-      return () => clearTimeout(timer);
+      const t = setTimeout(() => setNotification(null), 4000);
+      return () => clearTimeout(t);
     }
   }, [notification]);
 
@@ -148,10 +177,8 @@ export default function ContestsPage() {
     if (!deleteTarget) return;
     const target = deleteTarget;
     setIsModalOpen(false);
-
     try {
       const token = await getToken();
-
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}contests/${target.id}`,
         {
@@ -162,11 +189,10 @@ export default function ContestsPage() {
           },
         },
       );
-
       if (res.ok) {
         setContests((prev) => prev.filter((c) => c.id !== target.id));
         setNotification({
-          message: `Contest Deleted - ${target.name}`,
+          message: `Contest Deleted — ${target.name}`,
           type: "success",
         });
       } else {
@@ -176,7 +202,7 @@ export default function ContestsPage() {
           type: "error",
         });
       }
-    } catch (err) {
+    } catch {
       setNotification({
         message: "System Error: Could not reach backend.",
         type: "error",
@@ -186,19 +212,17 @@ export default function ContestsPage() {
     }
   };
 
-  if (loading) {
+  if (loading)
     return (
       <div className="min-h-screen bg-zinc-950 text-zinc-500 flex items-center justify-center font-mono text-xs tracking-widest uppercase animate-pulse">
         Querying Contest Logs...
       </div>
     );
-  }
 
   return (
     <div className="min-h-screen p-6 relative">
-      {" "}
       {notification && (
-        <div className="fixed bottom-8 right-8 z-[200] flex items-center gap-3 bg-zinc-900 border border-zinc-800 rounded-lg p-4 shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-300">
+        <div className="fixed bottom-8 right-8 z-[200] flex items-center gap-3 bg-zinc-900 border border-zinc-800 rounded-lg p-4 shadow-2xl">
           {notification.type === "success" ? (
             <CheckCircle2 size={18} className="text-emerald-500" />
           ) : (
@@ -209,8 +233,8 @@ export default function ContestsPage() {
           </span>
         </div>
       )}
+
       <div className="w-full max-w-5xl mx-auto mt-8 bg-zinc-950/40 backdrop-blur-md border border-zinc-800 rounded-xl overflow-hidden shadow-2xl">
-        {" "}
         <div className="flex items-center gap-4 p-6 border-b border-zinc-800 bg-zinc-900/20">
           <Activity className="w-6 h-6 text-indigo-500" />
           <h2
@@ -218,7 +242,11 @@ export default function ContestsPage() {
           >
             Contest<span className="text-zinc-600"> Logs</span>
           </h2>
+          <span className="ml-auto font-mono text-[10px] text-zinc-600">
+            {contests.length} records
+          </span>
         </div>
+
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
@@ -226,17 +254,18 @@ export default function ContestsPage() {
                 <th className="p-4 font-bold">Contest ID</th>
                 <th className="p-4 font-bold">Contest Name</th>
                 <th className="p-4 font-bold text-center">Participants</th>
-                <th className="p-4 font-bold text-right">Contest Status</th>
+                <th className="p-4 font-bold text-center">Created</th>
+                <th className="p-4 font-bold text-right">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-900">
               {contests.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={4}
-                    className="p-8 text-center text-zinc-600 font-mono text-xs uppercase tracking-widest"
+                    colSpan={5}
+                    className="p-12 text-center text-zinc-700 font-mono text-xs uppercase tracking-widest"
                   >
-                    No matching records found.
+                    No contest records found.
                   </td>
                 </tr>
               ) : (
@@ -261,7 +290,6 @@ export default function ContestsPage() {
                         <button
                           onClick={() => copyToClipboard(contest.id)}
                           className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-zinc-800 rounded-md transition-all text-zinc-500 hover:text-white cursor-pointer"
-                          title="Copy ID"
                         >
                           {copiedId === contest.id ? (
                             <Check size={12} className="text-emerald-500" />
@@ -271,7 +299,6 @@ export default function ContestsPage() {
                         </button>
                       </div>
                     </td>
-
                     <td className="p-4 font-bold text-zinc-100 uppercase tracking-tight text-sm">
                       {contest.name || (
                         <span className="text-zinc-600 font-mono text-[10px]">
@@ -279,13 +306,12 @@ export default function ContestsPage() {
                         </span>
                       )}
                     </td>
-
-                    <td className="p-4 text-center">
-                      <span className="font-mono font-bold text-zinc-400">
-                        {contest.total_participants}
-                      </span>
+                    <td className="p-4 text-center font-mono font-bold text-zinc-400">
+                      {contest.total_participants}
                     </td>
-
+                    <td className="p-4 text-center">
+                      <ContestDate dateStr={contest.created_at} />
+                    </td>
                     <td className="p-4 w-48">
                       <div className="flex items-center justify-end gap-3">
                         <span
@@ -295,9 +321,8 @@ export default function ContestsPage() {
                               : "bg-amber-950/30 text-amber-500 border-amber-900/50"
                           }`}
                         >
-                          {contest.finalized ? "FINALIZED" : "ACTIVE / PENDING"}
+                          {contest.finalized ? "FINALIZED" : "ACTIVE"}
                         </span>
-
                         {isAdmin && (
                           <button
                             onClick={() => {
@@ -308,7 +333,6 @@ export default function ContestsPage() {
                               setIsModalOpen(true);
                             }}
                             className="flex items-center justify-center h-6 px-1.5 text-zinc-600 hover:text-rose-500 hover:bg-rose-500/10 rounded-sm transition-all group-hover:opacity-100 opacity-0 cursor-pointer"
-                            title="Delete Contest"
                           >
                             <Trash2 size={14} />
                           </button>
@@ -322,6 +346,7 @@ export default function ContestsPage() {
           </table>
         </div>
       </div>
+
       <SecurityModal
         isOpen={isModalOpen}
         onClose={() => {
