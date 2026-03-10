@@ -20,7 +20,6 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/Swatantra-66/contest-rating-system/handlers"
-	"github.com/Swatantra-66/contest-rating-system/models"
 )
 
 func main() {
@@ -50,13 +49,13 @@ func main() {
 		sqlDB.SetConnMaxLifetime(time.Hour)
 	}
 
-	if err := db.AutoMigrate(
-		&models.User{},
-		&models.Contest{},
-		&models.RatingHistory{},
-	); err != nil {
-		log.Fatal("Migration failed:", err)
-	}
+	// if err := db.AutoMigrate(
+	// 	&models.User{},
+	// 	&models.Contest{},
+	// 	&models.RatingHistory{},
+	// ); err != nil {
+	// 	log.Println("WARNING: Migration issue:", err) // Fatal mat karo
+	// }
 
 	r := gin.Default()
 	r.Use(corsMiddleware())
@@ -73,6 +72,7 @@ func main() {
 		api.GET("/contests", h.GetContests)
 		api.GET("/contests/:id", h.GetContest)
 		api.GET("/history", h.GetGlobalHistory)
+		api.GET("/problems/random", h.GetRandomProblem)
 
 		api.POST("/contests/:id/finalize", h.FinalizeContest)
 		api.POST("/contests", h.CreateContest)
