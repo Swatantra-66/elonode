@@ -4,8 +4,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"net/http"
 	"os"
+	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -380,4 +383,124 @@ func (h *Handler) GetGlobalHistory(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, histories)
+}
+
+func (h *Handler) GetRandomProblem(c *gin.Context) {
+	difficulty := strings.ToLower(c.DefaultQuery("difficulty", "easy"))
+
+	lcDifficulty := strings.ToUpper(difficulty)
+	listPayload := lcGraphQLRequest{
+		Query: `
+		query problemsetQuestionList($categorySlug: String, $limit: Int, $skip: Int, $filters: QuestionListFilterInput) {
+			problemsetQuestionList: questionList(
+				categorySlug: $categorySlug
+				limit: $limit
+				skip: $skip
+				filters: $filters
+			) {
+				questions: data {
+					titleSlug
+					title
+					difficulty
+				}
+			}
+		}`,
+		Variables: map[string]interface{}{
+			"categorySlug": "",
+			"limit":        100,
+			"skip":         0,
+			"filters": map[string]interface{}{
+				"difficulty": lcDifficulty,
+			},
+		},
+	}
+
+	listData, err := lcGraphQL(listPayload)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch problem list: " + err.Error()})
+		return
+	}
+
+	var listResp lcProblemListResponse
+	if err := json.Unmarshal(listData, &listResp); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse problem list"})
+		return
+	}
+
+	questions := listResp.Data.ProblemsetQuestionList.Questions
+	if len(questions) == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "No problems found for difficulty: " + difficulty})
+		return
+	}
+
+	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+	picked := questions[rng.Intn(len(questions))]
+
+	detailPayload := lcGraphQLRequest{
+		Query: `
+		query problemDetail($titleSlug: String!) {
+			question(titleSlug: $titleSlug) {
+				title
+				titleSlug
+				difficulty
+				content
+				exampleTestcases
+				codeSnippets {
+					langSlug
+					code
+				}
+				topicTags {
+					name
+				}
+			}
+		}`,
+		Variables: map[string]interface{}{
+			"titleSlug": picked.TitleSlug,
+		},
+	}
+
+	detailData, err := lcGraphQL(detailPayload)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch problem detail: " + err.Error()})
+		return
+	}
+
+	var detailResp lcProblemDetailResponse
+	if err := json.Unmarshal(detailData, &detailResp); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse problem detail"})
+		return
+	}
+
+	q := detailResp.Data.Question
+
+	starterCode := "# Write your solution here\npass"
+	for _, snippet := range q.CodeSnippets {
+		if snippet.LangSlug == "python3" {
+			starterCode = snippet.Code
+			break
+		}
+	}
+
+	tags := make([]string, 0, len(q.TopicTags))
+	for _, t := range q.TopicTags {
+		tags = append(tags, t.Name)
+	}
+
+	snippets := make([]CodeSnippet, 0, len(q.CodeSnippets))
+	for _, s := range q.CodeSnippets {
+		snippets = append(snippets, CodeSnippet{LangSlug: s.LangSlug, Code: s.Code})
+	}
+
+	c.JSON(http.StatusOK, ProblemResponse{
+		Slug:         q.TitleSlug,
+		Title:        q.Title,
+		Difficulty:   q.Difficulty,
+		Content:      q.Content,
+		StarterCode:  starterCode,
+		Examples:     q.ExampleTestcases,
+		TimerSecs:    timerForDifficulty(q.Difficulty),
+		Tags:         tags,
+		LeetcodeURL:  fmt.Sprintf("https://leetcode.com/problems/%s/", q.TitleSlug),
+		CodeSnippets: snippets,
+	})
 }
