@@ -49,6 +49,9 @@ func main() {
 		sqlDB.SetConnMaxLifetime(time.Hour)
 	}
 
+	hub := handlers.NewWSHub()
+	go hub.Run()
+
 	// if err := db.AutoMigrate(
 	// 	&models.User{},
 	// 	&models.Contest{},
@@ -73,6 +76,7 @@ func main() {
 		api.GET("/contests/:id", h.GetContest)
 		api.GET("/history", h.GetGlobalHistory)
 		api.GET("/problems/random", h.GetRandomProblem)
+		api.GET("/ws", h.ServeWS(hub))
 
 		api.POST("/contests/:id/finalize", h.FinalizeContest)
 		api.POST("/contests", h.CreateContest)
