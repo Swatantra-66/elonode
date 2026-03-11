@@ -180,6 +180,9 @@ function DuelRoomInner() {
   const [fetchingProblem, setFetchingProblem] = useState(false);
   const [iAmReady, setIAmReady] = useState(false);
   const [opponentReady, setOpponentReady] = useState(false);
+  const [opponentLeft, setOpponentLeft] = useState(false);
+  const [editorLocked, setEditorLocked] = useState(false);
+  const [winnerMsg, setWinnerMsg] = useState("");
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const opponentRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -188,7 +191,7 @@ function DuelRoomInner() {
       ? localStorage.getItem("elonode_db_id") || ""
       : "";
 
-  const { send: wsSend } = useWebSocket({
+  const { send: wsSend, connected: wsConnected } = useWebSocket({
     userId: myNodeId,
     userName: user?.username || user?.firstName || "unknown",
     tier: "newbie",
@@ -197,15 +200,20 @@ function DuelRoomInner() {
     handlers: {
       onReadyUpdate: (payload) => {
         if (payload.contest_id !== duelId) return;
-        if (payload.user_id !== myNodeId) {
-          setOpponentReady(true);
-        }
-        if (payload.ready_count >= 2) {
-          startCountdown();
-        }
+        if (payload.user_id !== myNodeId) setOpponentReady(true);
+        if (payload.ready_count >= 2) startCountdown();
       },
       onDuelStart: (payload) => {
         if (payload.contest_id === duelId) startCountdown();
+      },
+      onChallengeResponse: (payload) => {
+        if (payload.contest_id === duelId && !payload.accepted) {
+          setOpponentLeft(true);
+          setEditorLocked(true);
+          clearInterval(timerRef.current!);
+          setWinnerMsg(`${opponent.name} left the duel. You win!`);
+          setTimeout(() => setPhase("won"), 2000);
+        }
       },
     },
   });
@@ -248,8 +256,10 @@ function DuelRoomInner() {
   const handleReady = useCallback(() => {
     if (!problem || iAmReady) return;
     setIAmReady(true);
-    wsSend("ready", { contest_id: duelId, user_id: myNodeId });
-    if (opponentReady) {
+    if (wsConnected) {
+      wsSend("ready", { contest_id: duelId, user_id: myNodeId });
+      if (opponentReady) startCountdown();
+    } else {
       startCountdown();
     }
   }, [
@@ -257,11 +267,11 @@ function DuelRoomInner() {
     iAmReady,
     opponentReady,
     wsSend,
+    wsConnected,
     duelId,
     myNodeId,
     startCountdown,
   ]);
-
   const DEFAULT_SNIPPETS: Record<string, string> = {
     python3: "class Solution:\n    def solve(self):\n        pass\n",
     javascript:
@@ -275,13 +285,13 @@ function DuelRoomInner() {
   };
 
   const LC_LANG_MAP: Record<string, string> = {
-    python: "python3",
-    javascript: "javascript",
-    typescript: "typescript",
     cpp: "cpp",
-    c: "c",
     java: "java",
     go: "golang",
+    javascript: "javascript",
+    typescript: "typescript",
+    python: "python3",
+    c: "c",
     rust: "rust",
   };
 
@@ -290,21 +300,18 @@ function DuelRoomInner() {
 
   const getStarterCode = useCallback((lang: string): string => {
     const lcSlug = LC_LANG_MAP[lang] || "python3";
-    return (
-      snippetsRef.current[lcSlug] ||
-      DEFAULT_SNIPPETS[lcSlug] ||
-      "// Write your solution here\n"
-    );
+    return snippetsRef.current[lcSlug] || DEFAULT_SNIPPETS[lcSlug] || "";
   }, []);
 
   const fetchProblem = useCallback(
-    async (diff: Difficulty) => {
+    async (diff: Difficulty, contestId?: string) => {
       setFetchingProblem(true);
       setErrorMsg("");
       try {
-        const res = await fetch(
-          `${API_BASE}problems/random?difficulty=${diff.toLowerCase()}`,
-        );
+        const url = contestId
+          ? `${API_BASE}problems/random?difficulty=${diff.toLowerCase()}&contest_id=${contestId}`
+          : `${API_BASE}problems/random?difficulty=${diff.toLowerCase()}`;
+        const res = await fetch(url);
         if (!res.ok) throw new Error();
         const data = await res.json();
 
@@ -371,12 +378,12 @@ function DuelRoomInner() {
           const duel = await res.json();
           const diff = (duel.difficulty as Difficulty) || "Easy";
           setDifficulty(diff);
-          await fetchProblem(diff);
+          await fetchProblem(diff, duelId);
         } else {
-          await fetchProblem("Easy");
+          await fetchProblem("Easy", duelId);
         }
       } catch {
-        await fetchProblem("Easy");
+        await fetchProblem("Easy", duelId);
       }
 
       try {
@@ -478,6 +485,10 @@ function DuelRoomInner() {
     } catch {
       setRatingChange(won ? 72 : -50);
     }
+    setEditorLocked(true);
+    setWinnerMsg(
+      won ? "You solved it first! 🏆" : `${opponent.name} submitted first.`,
+    );
     setPhase(won ? "won" : "lost");
   }, [phase, problem, code, language, opponentStatus, oldRating]);
 
@@ -561,7 +572,7 @@ function DuelRoomInner() {
                   key={d}
                   onClick={async () => {
                     setDifficulty(d);
-                    await fetchProblem(d);
+                    await fetchProblem(d, duelId);
                   }}
                   disabled={fetchingProblem}
                   className="px-4 py-2 rounded-lg font-mono text-[10px] font-bold uppercase tracking-widest cursor-pointer border transition-all disabled:opacity-40"
@@ -617,10 +628,6 @@ function DuelRoomInner() {
                 {fmt(problem?.timerSecs || 900)}
               </span>
             </span>
-            <span className="text-zinc-800">·</span>
-            <span>
-              LANG: <span className="text-indigo-400">PYTHON</span>
-            </span>
           </div>
           {errorMsg && (
             <p className="text-rose-400 text-[10px] tracking-wide mb-4">
@@ -630,12 +637,12 @@ function DuelRoomInner() {
 
           {opponentReady && !iAmReady && (
             <p className="text-amber-400 text-[10px] tracking-widest uppercase mb-3 animate-pulse">
-              Opponent is ready — waiting for you!
+              ⚡ Opponent is ready — waiting for you!
             </p>
           )}
           {iAmReady && !opponentReady && (
             <p className="text-zinc-500 text-[10px] tracking-widest uppercase mb-3 animate-pulse">
-              Waiting for opponent to ready up...
+              ⏳ Waiting for opponent to ready up...
             </p>
           )}
 
@@ -1049,7 +1056,21 @@ function DuelRoomInner() {
             </div>
           </div>
 
-          <div className="flex-1 overflow-hidden bg-[#1e1e1e]">
+          <div className="flex-1 overflow-hidden bg-[#1e1e1e] relative">
+            {opponentLeft && (
+              <div className="absolute inset-x-0 top-0 z-20 bg-rose-500/10 border-b border-rose-500/30 px-4 py-2 flex items-center gap-2">
+                <span className="text-[10px] text-rose-400 font-mono tracking-widest uppercase animate-pulse">
+                  ⚠ Opponent left the duel — You win!
+                </span>
+              </div>
+            )}
+            {winnerMsg && phase === "dueling" && (
+              <div className="absolute inset-x-0 top-0 z-20 bg-emerald-500/10 border-b border-emerald-500/30 px-4 py-2 flex items-center gap-2">
+                <span className="text-[10px] text-emerald-400 font-mono tracking-widest uppercase">
+                  {winnerMsg}
+                </span>
+              </div>
+            )}
             <Editor
               height="100%"
               language={
@@ -1071,6 +1092,7 @@ function DuelRoomInner() {
               }
               value={code}
               onChange={(val) => {
+                if (editorLocked) return;
                 setCode(val || "");
                 setMyProgress(
                   Math.min(
@@ -1107,6 +1129,7 @@ function DuelRoomInner() {
                 overviewRulerLanes: 0,
                 hideCursorInOverviewRuler: true,
                 overviewRulerBorder: false,
+                readOnly: editorLocked,
               }}
             />
           </div>
