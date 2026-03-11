@@ -49,12 +49,10 @@ func (h *Handler) GetUser(c *gin.Context) {
 
 func (h *Handler) GetUsers(c *gin.Context) {
 	var users []models.User
-
 	if err := h.db.Order("current_rating desc").Find(&users).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch users"})
 		return
 	}
-
 	c.JSON(http.StatusOK, users)
 }
 
@@ -284,9 +282,7 @@ func (h *Handler) GetStats(c *gin.Context) {
 	var activeContests int64
 
 	h.db.Table("users").Count(&count)
-
 	h.db.Table("users").Select("AVG(current_rating)").Row().Scan(&avgElo)
-
 	h.db.Table("contests").Count(&activeContests)
 
 	c.JSON(200, gin.H{
@@ -298,12 +294,10 @@ func (h *Handler) GetStats(c *gin.Context) {
 
 func (h *Handler) GetContests(c *gin.Context) {
 	var contests []map[string]interface{}
-
 	if err := h.db.Table("contests").Order("created_at DESC").Find(&contests).Error; err != nil {
 		c.JSON(500, gin.H{"error": "Could not fetch contests"})
 		return
 	}
-
 	c.JSON(200, contests)
 }
 
@@ -328,12 +322,7 @@ func (h *Handler) DeleteContest(c *gin.Context) {
 		if err := tx.Where("contest_id = ?", contestID).Delete(&models.RatingHistory{}).Error; err != nil {
 			return err
 		}
-
-		if err := tx.Where("id = ?", contestID).Delete(&models.Contest{}).Error; err != nil {
-			return err
-		}
-
-		return nil
+		return tx.Where("id = ?", contestID).Delete(&models.Contest{}).Error
 	})
 
 	if err != nil {
@@ -366,29 +355,24 @@ func FireWebhook(payload WebhookPayload) {
 	go func() {
 		resp, err := http.Post(webhookURL, "application/json", bytes.NewBuffer(jsonData))
 		if err != nil {
-			fmt.Println("SYSTEM ERROR: Failed to reach webhook:", err)
 			return
 		}
 		defer resp.Body.Close()
-		fmt.Printf("SYSTEM LOG: Webhook Triggered. Status: %d\n", resp.StatusCode)
 	}()
 }
 
 func (h *Handler) GetGlobalHistory(c *gin.Context) {
 	var histories []models.RatingHistory
-
 	if err := h.db.Order("created_at desc").Find(&histories).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch global rating history"})
 		return
 	}
-
 	c.JSON(http.StatusOK, histories)
 }
 
-func (h *Handler) GetRandomProblem(c *gin.Context) {
-	difficulty := strings.ToLower(c.DefaultQuery("difficulty", "easy"))
-
+func fetchRandomProblem(difficulty string) (*ProblemResponse, error) {
 	lcDifficulty := strings.ToUpper(difficulty)
+
 	listPayload := lcGraphQLRequest{
 		Query: `
 		query problemsetQuestionList($categorySlug: String, $limit: Int, $skip: Int, $filters: QuestionListFilterInput) {
@@ -417,20 +401,17 @@ func (h *Handler) GetRandomProblem(c *gin.Context) {
 
 	listData, err := lcGraphQL(listPayload)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch problem list: " + err.Error()})
-		return
+		return nil, err
 	}
 
 	var listResp lcProblemListResponse
 	if err := json.Unmarshal(listData, &listResp); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse problem list"})
-		return
+		return nil, err
 	}
 
 	questions := listResp.Data.ProblemsetQuestionList.Questions
 	if len(questions) == 0 {
-		c.JSON(http.StatusNotFound, gin.H{"error": "No problems found for difficulty: " + difficulty})
-		return
+		return nil, fmt.Errorf("no problems found for difficulty: %s", difficulty)
 	}
 
 	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
@@ -461,14 +442,12 @@ func (h *Handler) GetRandomProblem(c *gin.Context) {
 
 	detailData, err := lcGraphQL(detailPayload)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch problem detail: " + err.Error()})
-		return
+		return nil, err
 	}
 
 	var detailResp lcProblemDetailResponse
 	if err := json.Unmarshal(detailData, &detailResp); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse problem detail"})
-		return
+		return nil, err
 	}
 
 	q := detailResp.Data.Question
@@ -491,7 +470,7 @@ func (h *Handler) GetRandomProblem(c *gin.Context) {
 		snippets = append(snippets, CodeSnippet{LangSlug: s.LangSlug, Code: s.Code})
 	}
 
-	c.JSON(http.StatusOK, ProblemResponse{
+	return &ProblemResponse{
 		Slug:         q.TitleSlug,
 		Title:        q.Title,
 		Difficulty:   q.Difficulty,
@@ -502,5 +481,41 @@ func (h *Handler) GetRandomProblem(c *gin.Context) {
 		Tags:         tags,
 		LeetcodeURL:  fmt.Sprintf("https://leetcode.com/problems/%s/", q.TitleSlug),
 		CodeSnippets: snippets,
-	})
+	}, nil
+}
+
+func (h *Handler) GetRandomProblem(c *gin.Context) {
+	difficulty := strings.ToLower(c.DefaultQuery("difficulty", "easy"))
+	contestID := c.Query("contest_id")
+
+	if contestID != "" {
+		contestProblemCacheMu.RLock()
+		cached, exists := contestProblemCache[contestID]
+		contestProblemCacheMu.RUnlock()
+		if exists {
+			c.JSON(http.StatusOK, cached)
+			return
+		}
+	}
+
+	problem, err := fetchRandomProblem(difficulty)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	if contestID != "" {
+		contestProblemCacheMu.Lock()
+		contestProblemCache[contestID] = problem
+		contestProblemCacheMu.Unlock()
+
+		go func() {
+			time.Sleep(2 * time.Hour)
+			contestProblemCacheMu.Lock()
+			delete(contestProblemCache, contestID)
+			contestProblemCacheMu.Unlock()
+		}()
+	}
+
+	c.JSON(http.StatusOK, problem)
 }
