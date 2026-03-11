@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -63,6 +64,11 @@ type ProblemResponse struct {
 	CodeSnippets []CodeSnippet `json:"code_snippets"`
 }
 
+var (
+	contestProblemCache   = make(map[string]*ProblemResponse)
+	contestProblemCacheMu sync.RWMutex
+)
+
 func timerForDifficulty(diff string) int {
 	switch strings.ToLower(diff) {
 	case "medium":
@@ -76,22 +82,18 @@ func timerForDifficulty(diff string) int {
 
 func lcGraphQL(payload lcGraphQLRequest) ([]byte, error) {
 	body, _ := json.Marshal(payload)
-
 	req, err := http.NewRequest("POST", "https://leetcode.com/graphql", bytes.NewBuffer(body))
 	if err != nil {
 		return nil, err
 	}
-
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Referer", "https://leetcode.com")
 	req.Header.Set("User-Agent", "Mozilla/5.0 (compatible; EloNode/1.0)")
-
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
-
 	return io.ReadAll(resp.Body)
 }
