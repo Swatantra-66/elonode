@@ -18,7 +18,16 @@ import (
 )
 
 type Handler struct {
-	db *gorm.DB
+	db  *gorm.DB
+	hub *WSHub
+}
+
+func New(db *gorm.DB) *Handler {
+	return &Handler{db: db}
+}
+
+func NewWithHub(db *gorm.DB, hub *WSHub) *Handler {
+	return &Handler{db: db, hub: hub}
 }
 
 type FinalizeParticipant struct {
@@ -32,10 +41,6 @@ type WebhookPayload struct {
 	ContestName string `json:"contest_name"`
 	WinnerID    string `json:"winner_id,omitempty"`
 	LoserID     string `json:"loser_id,omitempty"`
-}
-
-func New(db *gorm.DB) *Handler {
-	return &Handler{db: db}
 }
 
 func (h *Handler) GetUser(c *gin.Context) {
@@ -285,10 +290,16 @@ func (h *Handler) GetStats(c *gin.Context) {
 	h.db.Table("users").Select("AVG(current_rating)").Row().Scan(&avgElo)
 	h.db.Table("contests").Count(&activeContests)
 
+	liveNodes := 0
+	if h.hub != nil {
+		liveNodes = h.hub.OnlineCount()
+	}
+
 	c.JSON(200, gin.H{
 		"total_nodes":     count,
 		"average_elo":     int(avgElo),
 		"active_contests": activeContests,
+		"live_nodes":      liveNodes,
 	})
 }
 

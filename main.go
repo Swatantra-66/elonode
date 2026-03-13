@@ -57,13 +57,14 @@ func main() {
 	// 	&models.Contest{},
 	// 	&models.RatingHistory{},
 	// ); err != nil {
-	// 	log.Println("WARNING: Migration issue:", err) // Fatal mat karo
+	// 	log.Println("Migration issue:", err)
 	// }
 
 	r := gin.Default()
 	r.Use(corsMiddleware())
 
-	h := handlers.New(db)
+	//h := handlers.New(db)
+	h := handlers.NewWithHub(db, hub)
 
 	api := r.Group("/api")
 	{

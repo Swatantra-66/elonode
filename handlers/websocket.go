@@ -124,6 +124,12 @@ func NewWSHub() *WSHub {
 	}
 }
 
+func (h *WSHub) OnlineCount() int {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	return len(h.clients)
+}
+
 func (h *WSHub) Run() {
 	for {
 		select {
