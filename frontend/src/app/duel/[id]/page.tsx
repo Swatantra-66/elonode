@@ -228,18 +228,23 @@ function DuelRoomInner() {
       if (c === 0) {
         clearInterval(iv);
         setPhase("dueling");
-        timerRef.current = setInterval(
-          () =>
-            setTimer((t) => {
-              if (t <= 1) {
-                clearInterval(timerRef.current!);
-                setPhase("lost");
-                return 0;
-              }
-              return t - 1;
-            }),
-          1000,
-        );
+        let t = 0;
+        setTimer((prev) => {
+          t = prev;
+          return prev;
+        });
+        if (timerRef.current) clearInterval(timerRef.current);
+        timerRef.current = setInterval(() => {
+          setTimer((prev) => {
+            if (prev <= 1) {
+              clearInterval(timerRef.current!);
+              setPhase("lost");
+              return 0;
+            }
+            return prev - 1;
+          });
+        }, 1000);
+        if (opponentRef.current) clearInterval(opponentRef.current);
         let prog = 0;
         opponentRef.current = setInterval(() => {
           prog += Math.random() * 3 + 0.5;
@@ -285,13 +290,13 @@ function DuelRoomInner() {
   };
 
   const LC_LANG_MAP: Record<string, string> = {
-    cpp: "cpp",
-    java: "java",
-    go: "golang",
+    python: "python3",
     javascript: "javascript",
     typescript: "typescript",
-    python: "python3",
+    cpp: "cpp",
     c: "c",
+    java: "java",
+    go: "golang",
     rust: "rust",
   };
 
@@ -395,7 +400,9 @@ function DuelRoomInner() {
             setOldRating(u.current_rating || 1000);
           }
         }
-      } catch {}
+      } catch {
+        /* ignore */
+      }
 
       setPhase("waiting");
     };
@@ -572,7 +579,7 @@ function DuelRoomInner() {
                   key={d}
                   onClick={async () => {
                     setDifficulty(d);
-                    await fetchProblem(d, duelId);
+                    await fetchProblem(d);
                   }}
                   disabled={fetchingProblem}
                   className="px-4 py-2 rounded-lg font-mono text-[10px] font-bold uppercase tracking-widest cursor-pointer border transition-all disabled:opacity-40"
@@ -709,7 +716,6 @@ function DuelRoomInner() {
           className="text-center max-w-lg px-8"
           style={{ animation: "winPop 0.55s cubic-bezier(0.34,1.56,0.64,1)" }}
         >
-          <div className="text-7xl mb-5">{won ? "🏆" : "💀"}</div>
           <h1
             className={`${orbitron.className} text-6xl font-black uppercase tracking-tighter mb-3`}
             style={{
@@ -1157,24 +1163,50 @@ function DuelRoomInner() {
                   <span className="text-[9px] text-rose-400">{errorMsg}</span>
                 )}
               </div>
-              <button
-                onClick={submitSolution}
-                disabled={phase === "submitting"}
-                className="flex items-center gap-2 px-5 py-2 rounded-lg text-white font-mono text-[10px] font-bold uppercase tracking-widest border-0 cursor-pointer transition-all disabled:opacity-50"
-                style={{
-                  background:
-                    phase === "submitting"
-                      ? "rgba(99,102,241,0.3)"
-                      : "linear-gradient(135deg,#6366f1,#4f46e5)",
-                  boxShadow:
-                    phase !== "submitting"
-                      ? "0 4px 16px rgba(99,102,241,0.3)"
-                      : "none",
-                }}
-              >
-                <Zap size={12} />{" "}
-                {phase === "submitting" ? "Running..." : "Submit"}
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={async () => {
+                    clearInterval(timerRef.current!);
+                    clearInterval(opponentRef.current!);
+                    const uid = localStorage.getItem("elonode_db_id");
+                    if (uid && duelId) {
+                      try {
+                        await fetch(`${API_BASE}contests/${duelId}/finalize`, {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify([{ user_id: uid, rank: 2 }]),
+                        });
+                      } catch {}
+                    }
+                    router.push("/arena");
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-[10px] font-bold uppercase tracking-widest border cursor-pointer transition-all text-zinc-500 hover:text-rose-400 hover:border-rose-400/30"
+                  style={{
+                    background: "transparent",
+                    borderColor: "rgba(255,255,255,0.06)",
+                  }}
+                >
+                  Leave
+                </button>
+                <button
+                  onClick={submitSolution}
+                  disabled={phase === "submitting"}
+                  className="flex items-center gap-2 px-5 py-2 rounded-lg text-white font-mono text-[10px] font-bold uppercase tracking-widest border-0 cursor-pointer transition-all disabled:opacity-50"
+                  style={{
+                    background:
+                      phase === "submitting"
+                        ? "rgba(99,102,241,0.3)"
+                        : "linear-gradient(135deg,#6366f1,#4f46e5)",
+                    boxShadow:
+                      phase !== "submitting"
+                        ? "0 4px 16px rgba(99,102,241,0.3)"
+                        : "none",
+                  }}
+                >
+                  <Zap size={12} />{" "}
+                  {phase === "submitting" ? "Running..." : "Submit"}
+                </button>
+              </div>
             </div>
             <div className="flex-1 overflow-y-auto p-3 space-y-2">
               {testResults.map((status, i) => {
