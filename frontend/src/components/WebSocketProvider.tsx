@@ -122,12 +122,39 @@ function ChallengeNotification({
           color: "#52525b",
           letterSpacing: "0.1em",
           textTransform: "uppercase",
-          marginBottom: 14,
+          marginBottom: 6,
         }}
       >
         Rating:{" "}
         <span style={{ color: "#e4e4e7" }}>{challenge.from_rating}</span>{" "}
         &nbsp;·&nbsp; Wants to duel you
+      </p>
+      <p
+        style={{
+          fontSize: 10,
+          color: "#52525b",
+          letterSpacing: "0.1em",
+          textTransform: "uppercase",
+          marginBottom: 14,
+        }}
+      >
+        Difficulty:{" "}
+        <span
+          style={{
+            color:
+              challenge.difficulty === "Hard"
+                ? "#f87171"
+                : challenge.difficulty === "Medium"
+                  ? "#fbbf24"
+                  : "#4ade80",
+          }}
+        >
+          {challenge.difficulty || "Easy"}
+        </span>
+        &nbsp;·&nbsp; Mode:{" "}
+        <span style={{ color: "#818cf8" }}>
+          {challenge.mode === "random" ? "Random" : "Same"}
+        </span>
       </p>
       <div
         style={{
@@ -219,17 +246,13 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
     useState<ChallengePayload | null>(null);
   const [challenging, setChallenging] = useState<string | null>(null);
   const [waitingFor, setWaitingFor] = useState<string | null>(null);
-
   const [myNodeId, setMyNodeId] = useState<string | null>(null);
   const [myTier, setMyTier] = useState("Newbie");
 
   useEffect(() => {
     const uid = localStorage.getItem("elonode_db_id");
     if (uid && uid !== "null" && uid !== "undefined") {
-      setTimeout(() => {
-        setMyNodeId(uid);
-      }, 0);
-
+      setTimeout(() => setMyNodeId(uid), 0);
       fetch(`${process.env.NEXT_PUBLIC_API_URL}users/${uid}`)
         .then((r) => r.json())
         .then((data) => {
@@ -257,8 +280,14 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
     }) => {
       setChallenging(null);
       if (payload.accepted) {
+        const stored = sessionStorage.getItem(
+          `challenge_meta_${payload.contest_id}`,
+        );
+        const meta = stored
+          ? JSON.parse(stored)
+          : { difficulty: "Easy", mode: "same" };
         router.push(
-          `/duel/${payload.contest_id}?opponent=${encodeURIComponent(payload.to_id)}&opponentId=${payload.to_id}`,
+          `/duel/${payload.contest_id}?opponent=${encodeURIComponent(payload.to_id)}&opponentId=${payload.to_id}&difficulty=${meta.difficulty}&mode=${meta.mode}`,
         );
       } else {
         alert("Opponent declined the challenge.");
@@ -268,7 +297,6 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
     [router],
   );
 
-  // FIX: Use activeId so it falls back to the Clerk user ID if local storage is slow!
   const activeId = myNodeId || user?.id;
 
   const { send, connected } = useWebSocket({
@@ -295,9 +323,11 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
     const contestId = pendingChallenge.contest_id;
     const opponentName = encodeURIComponent(pendingChallenge.from_name);
     const opponentId = pendingChallenge.from_id;
+    const difficulty = pendingChallenge.difficulty || "Easy";
+    const mode = pendingChallenge.mode || "same";
     setPendingChallenge(null);
     router.push(
-      `/duel/${contestId}?opponent=${opponentName}&opponentId=${opponentId}`,
+      `/duel/${contestId}?opponent=${opponentName}&opponentId=${opponentId}&difficulty=${difficulty}&mode=${mode}`,
     );
   }, [pendingChallenge, activeId, router, send]);
 
@@ -312,10 +342,33 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
     setPendingChallenge(null);
   }, [pendingChallenge, activeId, send]);
 
+  const sendWithMeta = useCallback(
+    (
+      type: string,
+      payload: object & {
+        contest_id?: string;
+        difficulty?: string;
+        mode?: string;
+      },
+    ) => {
+      if (type === "challenge" && payload.contest_id) {
+        sessionStorage.setItem(
+          `challenge_meta_${payload.contest_id}`,
+          JSON.stringify({
+            difficulty: payload.difficulty || "Easy",
+            mode: payload.mode || "same",
+          }),
+        );
+      }
+      send(type, payload);
+    },
+    [send],
+  );
+
   return (
     <WSContext.Provider
       value={{
-        send,
+        send: sendWithMeta,
         connected,
         onlineUsers,
         challenging,
@@ -338,8 +391,7 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
 
 export function useGlobalWS() {
   const context = useContext(WSContext);
-  if (context === undefined) {
+  if (context === undefined)
     throw new Error("useGlobalWS must be used within a WebSocketProvider");
-  }
   return context;
 }
