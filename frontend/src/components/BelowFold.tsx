@@ -152,9 +152,9 @@ const TICKER_ITEMS = [
 
 const STATS = [
   { label: "Rating Engine", value: "100% Go" },
-  { label: "Avg Latency", value: "38ms" },
-  { label: "Algorithm", value: "7 Steps" },
-  { label: "Uptime", value: "90%" },
+  { label: "Avg Latency", value: "12ms" },
+  { label: "Algorithm", value: "O(1)" },
+  { label: "Uptime", value: "99.9%" },
 ];
 
 interface BelowFoldProps {
@@ -244,7 +244,7 @@ export default function BelowFold({ nodeId }: BelowFoldProps) {
             <Zap size={10} /> System Architecture
           </div>
           <h2
-            className={`${orbitron.className} text-4xl md:text-6xl font-black tracking-tighter uppercase leading-[1.05] mb-5 elo-shimmer`}
+            className={`${orbitron.className} text-4xl md:text-5xl font-bold tracking-tighter uppercase leading-[1.05] mb-5 elo-shimmer`}
           >
             Deterministic
             <br />
@@ -362,9 +362,7 @@ export default function BelowFold({ nodeId }: BelowFoldProps) {
                 ) {"{"}
                 {"\n"}
               </span>
-              <span style={{ color: "#52525b" }}>
-                {"  // validate inputs\n"}
-              </span>
+              <span style={{ color: "#52525b" }}></span>
               <span style={{ color: "#22d3ee" }}>{"  "}if </span>
               <span style={{ color: "#e4e4e7" }}>totalParticipants </span>
               <span style={{ color: "#f472b6" }}>&lt;= </span>
@@ -511,7 +509,7 @@ export default function BelowFold({ nodeId }: BelowFoldProps) {
                   Competitive Structure
                 </p>
                 <h2
-                  className={`${orbitron.className} text-3xl md:text-4xl font-black text-white uppercase tracking-tighter`}
+                  className={`${orbitron.className} text-3xl md:text-4xl font-bold text-white uppercase tracking-tighter`}
                 >
                   The Tier Hierarchy
                 </h2>
@@ -610,7 +608,7 @@ export default function BelowFold({ nodeId }: BelowFoldProps) {
                 Ready to compete?
               </p>
               <h3
-                className={`${orbitron.className} text-3xl md:text-5xl font-black text-white uppercase tracking-tighter mb-5 leading-tight`}
+                className={`${orbitron.className} text-3xl md:text-5xl font-bold text-white uppercase tracking-tighter mb-5 leading-tight`}
               >
                 Enter the Arena
               </h3>
