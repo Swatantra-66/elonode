@@ -6,11 +6,9 @@ import { Orbitron } from "next/font/google";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { useAuth } from "@clerk/nextjs";
+import { useGlobalWS } from "@/components/WebSocketProvider";
 
-const futuristicFont = Orbitron({
-  subsets: ["latin"],
-  weight: ["700"],
-});
+const futuristicFont = Orbitron({ subsets: ["latin"], weight: ["700"] });
 
 interface User {
   id: string;
@@ -33,30 +31,26 @@ export default function Leaderboard() {
   const ADMIN_USER_ID = process.env.NEXT_PUBLIC_ADMIN_USER_ID;
   const isAdmin = isLoaded && userId === ADMIN_USER_ID;
 
+  const { onlineUsers } = useGlobalWS();
+  const onlineIds = new Set(onlineUsers.map((u) => u.user_id));
+
   useEffect(() => {
-    const fetchLeaderboard = async () => {
-      try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}users`);
-        if (!response.ok) throw new Error("Failed to fetch leaderboard");
-
-        const data = await response.json();
-
-        const sortedUsers = data.sort(
-          (a: User, b: User) => b.current_rating - a.current_rating,
-        );
-        setUsers(sortedUsers);
-      } catch (err) {
-        if (err instanceof Error) {
-          setError(err.message);
-        } else {
-          setError("An unexpected error occurred");
-        }
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchLeaderboard();
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}users`)
+      .then((r) => {
+        if (!r.ok) throw new Error("Failed to fetch leaderboard");
+        return r.json();
+      })
+      .then((data) =>
+        setUsers(
+          data.sort((a: User, b: User) => b.current_rating - a.current_rating),
+        ),
+      )
+      .catch((err) =>
+        setError(
+          err instanceof Error ? err.message : "An unexpected error occurred",
+        ),
+      )
+      .finally(() => setLoading(false));
   }, []);
 
   const copyToClipboard = (id: string) => {
@@ -66,27 +60,22 @@ export default function Leaderboard() {
   };
 
   const getTierColor = (tier: string) => {
-    const normalized = tier?.toLowerCase() || "";
-    if (normalized.includes("newbie"))
-      return "text-zinc-400 border-zinc-700 bg-zinc-900";
-    if (normalized.includes("apprentice"))
-      return "text-emerald-400 border-emerald-900/50 bg-emerald-950/30";
-    if (normalized.includes("specialist"))
-      return "text-cyan-400 border-cyan-900/50 bg-cyan-950/30";
-    if (normalized.includes("expert"))
-      return "text-blue-400 border-blue-900/50 bg-blue-950/30";
-    if (normalized.includes("master") && !normalized.includes("grandmaster"))
-      return "text-purple-400 border-purple-900/50 bg-purple-950/30";
-    if (normalized.includes("grandmaster"))
+    const t = tier?.toLowerCase() || "";
+    if (t.includes("grandmaster"))
       return "text-rose-500 border-rose-900/50 bg-rose-950/30 shadow-[0_0_15px_rgba(244,63,94,0.5)]";
+    if (t.includes("master"))
+      return "text-purple-400 border-purple-900/50 bg-purple-950/30";
+    if (t.includes("expert"))
+      return "text-blue-400 border-blue-900/50 bg-blue-950/30";
+    if (t.includes("specialist"))
+      return "text-cyan-400 border-cyan-900/50 bg-cyan-950/30";
+    if (t.includes("apprentice"))
+      return "text-emerald-400 border-emerald-900/50 bg-emerald-950/30";
     return "text-zinc-400 border-zinc-700 bg-zinc-900";
   };
 
   const filteredUsers = users
-    .map((user, index) => ({
-      ...user,
-      globalRankIndex: index,
-    }))
+    .map((user, index) => ({ ...user, globalRankIndex: index }))
     .filter((user) =>
       user.name?.toLowerCase().includes(searchQuery.toLowerCase()),
     );
@@ -106,7 +95,7 @@ export default function Leaderboard() {
       </div>
     );
 
-  if (!loading && users.length === 0) {
+  if (!loading && users.length === 0)
     return (
       <div className="text-center p-12 bg-zinc-900/30 rounded-xl border border-dashed border-zinc-800">
         <p className="text-zinc-500 uppercase tracking-widest text-xs font-bold">
@@ -114,13 +103,12 @@ export default function Leaderboard() {
         </p>
       </div>
     );
-  }
 
   return (
-    <div className="w-full max-w-5xl mx-auto mt-8">
+    <div className="w-full max-w-5xl mx-auto mt-2">
       <Link
         href={isAdmin ? "/admin" : "/"}
-        className="inline-flex items-center gap-2 text-zinc-500 hover:text-indigo-400 transition-colors text-xs font-mono uppercase tracking-widest mb-6 group"
+        className="inline-flex items-center gap-2 text-zinc-500 hover:text-indigo-400 transition-colors text-xs font-mono uppercase tracking-widest mb-4 group"
       >
         <ArrowLeft
           size={14}
@@ -139,7 +127,6 @@ export default function Leaderboard() {
               Global <span className="text-zinc-600">Leaderboard</span>
             </h2>
           </div>
-
           <div className="relative w-full sm:w-72">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <Search size={16} className="text-zinc-500" />
@@ -158,17 +145,19 @@ export default function Leaderboard() {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-zinc-900/50 text-zinc-500 text-[10px] uppercase tracking-[0.2em]">
-                <th className="py-4 pl-8 pr-4 font-bold">Rank</th>
+                <th className="py-4 pl-8 pr-4 font-bold w-24">Rank</th>
                 <th className="p-4 font-bold">Identification</th>
                 <th className="p-4 font-bold text-center">Tier</th>
-                <th className="p-4 font-bold text-right">Rating</th>
-                <th className="p-4 font-bold text-right">Matches</th>
-                <th className="p-4 font-bold">Node UUID</th>
+                <th className="p-4 font-bold text-right w-32">Rating</th>
+                <th className="p-4 font-bold text-center w-24">Matches</th>
+                <th className="p-4 font-bold pl-8">Node UUID</th>
+                <th className="p-4 font-bold text-center w-24">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-900">
               {filteredUsers.map((user) => {
                 const rank = user.globalRankIndex ?? 0;
+                const isOnline = onlineIds.has(user.id);
 
                 let rowClasses = "hover:bg-zinc-800/20 transition-all group";
                 if (rank === 0)
@@ -191,21 +180,18 @@ export default function Leaderboard() {
                             className="text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.6)]"
                           />
                         )}
-
                         {rank === 1 && (
                           <Medal
                             size={18}
                             className="text-zinc-300 drop-shadow-[0_0_8px_rgba(212,212,216,0.4)]"
                           />
                         )}
-
                         {rank === 2 && (
                           <Medal
                             size={18}
                             className="text-amber-700 drop-shadow-[0_0_8px_rgba(180,83,9,0.5)]"
                           />
                         )}
-
                         {rank > 2 && (
                           <span className="w-6 text-center text-xs font-bold text-zinc-600 tracking-widest">
                             {String(rank + 1).padStart(2, "0")}
@@ -236,15 +222,10 @@ export default function Leaderboard() {
                         <span className="font-mono font-bold text-lg text-zinc-100 tracking-tighter">
                           {user.current_rating}
                         </span>
-
                         {user.rating_change !== undefined &&
                         user.rating_change !== 0 ? (
                           <span
-                            className={`text-[10px] font-mono flex items-center gap-0.5 mt-0.5 ${
-                              user.rating_change > 0
-                                ? "text-emerald-500"
-                                : "text-red-500"
-                            }`}
+                            className={`text-[10px] font-mono flex items-center gap-0.5 mt-0.5 ${user.rating_change > 0 ? "text-emerald-500" : "text-red-500"}`}
                           >
                             {user.rating_change > 0 ? "▲" : "▼"}
                             {Math.abs(user.rating_change)}
@@ -257,11 +238,11 @@ export default function Leaderboard() {
                       </div>
                     </td>
 
-                    <td className="p-4 text-right text-zinc-500 font-mono text-xs">
+                    <td className="p-4 text-center text-zinc-500 font-mono text-xs">
                       {user.contests_played}
                     </td>
 
-                    <td className="p-4">
+                    <td className="p-4 pl-8">
                       <div className="flex items-center gap-2">
                         <span className="font-mono text-[10px] text-zinc-500">
                           {user.id.length > 12
@@ -279,6 +260,28 @@ export default function Leaderboard() {
                             <Copy size={12} />
                           )}
                         </button>
+                      </div>
+                    </td>
+
+                    <td className="p-4 text-center">
+                      <div className="flex items-center justify-center">
+                        <span
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md font-mono text-[9px] uppercase tracking-widest border"
+                          style={{
+                            background: isOnline
+                              ? "rgba(74,222,128,0.08)"
+                              : "rgba(255,255,255,0.03)",
+                            borderColor: isOnline
+                              ? "rgba(74,222,128,0.3)"
+                              : "rgba(255,255,255,0.08)",
+                            color: isOnline ? "#4ade80" : "#52525b",
+                          }}
+                        >
+                          <div
+                            className={`w-1.5 h-1.5 rounded-full ${isOnline ? "bg-emerald-400" : "bg-zinc-600"}`}
+                          />
+                          {isOnline ? "Online" : "Offline"}
+                        </span>
                       </div>
                     </td>
                   </tr>
