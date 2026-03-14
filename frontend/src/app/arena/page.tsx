@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import {
@@ -16,15 +16,11 @@ import {
   Wifi,
   WifiOff,
   X,
-  Check,
 } from "lucide-react";
 import { Orbitron } from "next/font/google";
 import Link from "next/link";
-import {
-  useWebSocket,
-  OnlineUser,
-  ChallengePayload,
-} from "@/hooks/useWebSocket";
+// FIX: Import our new Global Hook instead of the direct WebSocket!
+import { useGlobalWS } from "@/components/WebSocketProvider";
 
 const orbitron = Orbitron({ subsets: ["latin"], weight: ["700", "900"] });
 const API = process.env.NEXT_PUBLIC_API_URL || "";
@@ -109,211 +105,23 @@ function RatingBar({ rating }: { rating: number }) {
   );
 }
 
-function ChallengeNotification({
-  challenge,
-  onAccept,
-  onDecline,
-}: {
-  challenge: ChallengePayload;
-  onAccept: () => void;
-  onDecline: () => void;
-}) {
-  const [timeLeft, setTimeLeft] = useState(30);
-  useEffect(() => {
-    const iv = setInterval(
-      () =>
-        setTimeLeft((t) => {
-          if (t <= 1) {
-            onDecline();
-            return 0;
-          }
-          return t - 1;
-        }),
-      1000,
-    );
-    return () => clearInterval(iv);
-  }, [onDecline]);
-
-  return (
-    <div
-      style={{
-        position: "fixed",
-        top: 24,
-        right: 24,
-        zIndex: 1000,
-        width: 320,
-        background: "#0f1015",
-        border: "1px solid rgba(99,102,241,0.4)",
-        borderRadius: 16,
-        padding: 20,
-        boxShadow:
-          "0 20px 60px rgba(0,0,0,0.8), 0 0 0 1px rgba(99,102,241,0.2)",
-        animation: "slideIn 0.3s cubic-bezier(0.34,1.56,0.64,1)",
-      }}
-    >
-      <style>{`@keyframes slideIn{from{transform:translateX(120%);opacity:0}to{transform:translateX(0);opacity:1}}`}</style>
-
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-          marginBottom: 14,
-        }}
-      >
-        <div
-          style={{
-            width: 36,
-            height: 36,
-            borderRadius: 10,
-            background: "rgba(99,102,241,0.15)",
-            border: "1px solid rgba(99,102,241,0.3)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <Swords size={16} style={{ color: "#818cf8" }} />
-        </div>
-        <div>
-          <p
-            style={{
-              fontSize: 10,
-              color: "#52525b",
-              letterSpacing: "0.15em",
-              textTransform: "uppercase",
-              fontFamily: "ui-monospace,monospace",
-            }}
-          >
-            Challenge Received
-          </p>
-          <p
-            style={{
-              fontSize: 13,
-              fontWeight: 700,
-              color: "#fff",
-              letterSpacing: "0.05em",
-            }}
-          >
-            {challenge.from_name}
-          </p>
-        </div>
-        <div
-          style={{
-            marginLeft: "auto",
-            fontFamily: "ui-monospace,monospace",
-            fontSize: 11,
-            color: timeLeft <= 10 ? "#f87171" : "#52525b",
-            fontWeight: 700,
-          }}
-        >
-          {timeLeft}s
-        </div>
-      </div>
-
-      <p
-        style={{
-          fontSize: 10,
-          color: "#52525b",
-          letterSpacing: "0.1em",
-          fontFamily: "ui-monospace,monospace",
-          textTransform: "uppercase",
-          marginBottom: 14,
-        }}
-      >
-        Rating:{" "}
-        <span style={{ color: "#e4e4e7" }}>{challenge.from_rating}</span>
-        &nbsp;·&nbsp; Wants to duel you
-      </p>
-
-      <div
-        style={{
-          height: 2,
-          background: "rgba(255,255,255,0.05)",
-          borderRadius: 1,
-          marginBottom: 16,
-          overflow: "hidden",
-        }}
-      >
-        <div
-          style={{
-            height: "100%",
-            background: "#6366f1",
-            borderRadius: 1,
-            transition: "width 1s linear",
-            width: `${(timeLeft / 30) * 100}%`,
-          }}
-        />
-      </div>
-
-      <div style={{ display: "flex", gap: 8 }}>
-        <button
-          onClick={onAccept}
-          style={{
-            flex: 1,
-            padding: "10px",
-            borderRadius: 10,
-            border: "none",
-            cursor: "pointer",
-            background: "linear-gradient(135deg,#6366f1,#4f46e5)",
-            color: "#fff",
-            fontFamily: "ui-monospace,monospace",
-            fontSize: 10,
-            fontWeight: 700,
-            letterSpacing: "0.15em",
-            textTransform: "uppercase",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 6,
-          }}
-        >
-          <Check size={12} /> Accept
-        </button>
-        <button
-          onClick={onDecline}
-          style={{
-            flex: 1,
-            padding: "10px",
-            borderRadius: 10,
-            cursor: "pointer",
-            background: "rgba(248,113,113,0.1)",
-            border: "1px solid rgba(248,113,113,0.2)",
-            color: "#f87171",
-            fontFamily: "ui-monospace,monospace",
-            fontSize: 10,
-            fontWeight: 700,
-            letterSpacing: "0.15em",
-            textTransform: "uppercase",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 6,
-          }}
-        >
-          <X size={12} /> Decline
-        </button>
-      </div>
-    </div>
-  );
-}
-
 export default function ArenaPage() {
   const { isLoaded, user } = useUser();
-  const router = useRouter();
   const [allUsers, setAllUsers] = useState<NodeUser[]>([]);
-  const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [myNodeId, setMyNodeId] = useState<string | null>(null);
-  const [myRating, setMyRating] = useState(1000);
-  const [myTier, setMyTier] = useState("Newbie");
-  const [challenging, setChallenging] = useState<string | null>(null);
-  const [pendingChallenge, setPendingChallenge] =
-    useState<ChallengePayload | null>(null);
-  const [waitingFor, setWaitingFor] = useState<string | null>(null);
 
-  const myImageUrl = user?.imageUrl || "";
+  // FIX: Destructure exactly what we need from the global provider!
+  const {
+    send,
+    connected,
+    onlineUsers,
+    challenging,
+    setChallenging,
+    waitingFor,
+    setWaitingFor,
+  } = useGlobalWS();
 
   useEffect(() => {
     const uid = localStorage.getItem("elonode_db_id");
@@ -325,59 +133,10 @@ export default function ArenaPage() {
           (a: NodeUser, b: NodeUser) => b.current_rating - a.current_rating,
         );
         setAllUsers(sorted);
-        if (uid) {
-          const me = sorted.find((u: NodeUser) => u.id === uid);
-          if (me) {
-            setMyRating(me.current_rating);
-            setMyTier(me.tier);
-          }
-        }
       })
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
-
-  const handleOnlineUsers = useCallback(
-    (users: OnlineUser[]) => setOnlineUsers(users),
-    [],
-  );
-  const handleChallengeRecv = useCallback(
-    (payload: ChallengePayload) => setPendingChallenge(payload),
-    [],
-  );
-
-  const handleChallengeResp = useCallback(
-    (payload: {
-      contest_id: string;
-      from_id: string;
-      to_id: string;
-      accepted: boolean;
-    }) => {
-      setChallenging(null);
-      if (payload.accepted) {
-        router.push(
-          `/duel/${payload.contest_id}?opponent=${encodeURIComponent(payload.to_id)}&opponentId=${payload.to_id}`,
-        );
-      } else {
-        alert(`${payload.to_id} declined your challenge.`);
-        setWaitingFor(null);
-      }
-    },
-    [router],
-  );
-
-  const { send, connected } = useWebSocket({
-    userId: myNodeId || "",
-    userName: user?.username || user?.firstName || "Unknown",
-    tier: myTier,
-    imageUrl: myImageUrl,
-    enabled: !!myNodeId && isLoaded,
-    handlers: {
-      onOnlineUsers: handleOnlineUsers,
-      onChallengeReceived: handleChallengeRecv,
-      onChallengeResponse: handleChallengeResp,
-    },
-  });
 
   const handleChallenge = async (opponent: NodeUser) => {
     const isOnline = onlineUsers.some((u) => u.user_id === opponent.id);
@@ -411,32 +170,6 @@ export default function ArenaPage() {
       setChallenging(null);
     }
   };
-
-  const handleAccept = useCallback(() => {
-    if (!pendingChallenge) return;
-    send("challenge_response", {
-      contest_id: pendingChallenge.contest_id,
-      from_id: pendingChallenge.from_id,
-      to_id: myNodeId,
-      accepted: true,
-    });
-    setPendingChallenge(null);
-    const opp = allUsers.find((u) => u.id === pendingChallenge.from_id);
-    router.push(
-      `/duel/${pendingChallenge.contest_id}?opponent=${encodeURIComponent(pendingChallenge.from_name)}&opponentId=${pendingChallenge.from_id}`,
-    );
-  }, [pendingChallenge, send, myNodeId, router, allUsers]);
-
-  const handleDecline = useCallback(() => {
-    if (!pendingChallenge) return;
-    send("challenge_response", {
-      contest_id: pendingChallenge.contest_id,
-      from_id: pendingChallenge.from_id,
-      to_id: myNodeId,
-      accepted: false,
-    });
-    setPendingChallenge(null);
-  }, [pendingChallenge, send, myNodeId]);
 
   const onlineIds = new Set(onlineUsers.map((u) => u.user_id));
   const opponents = allUsers
@@ -505,14 +238,6 @@ export default function ArenaPage() {
         .node-card:hover{transform:translateY(-3px)}
         .challenge-btn{transition:all 0.2s ease}
       `}</style>
-
-      {pendingChallenge && (
-        <ChallengeNotification
-          challenge={pendingChallenge}
-          onAccept={handleAccept}
-          onDecline={handleDecline}
-        />
-      )}
 
       {waitingFor && (
         <div
