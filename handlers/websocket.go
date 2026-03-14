@@ -127,7 +127,13 @@ func NewWSHub() *WSHub {
 func (h *WSHub) OnlineCount() int {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
-	return len(h.clients)
+	count := 0
+	for id := range h.clients {
+		if id != "" && id != "null" && id != "undefined" {
+			count++
+		}
+	}
+	return count
 }
 
 func (h *WSHub) Run() {
@@ -135,13 +141,17 @@ func (h *WSHub) Run() {
 		select {
 		case c := <-h.register:
 			h.mu.Lock()
+			if oldClient, ok := h.clients[c.UserID]; ok {
+				close(oldClient.Send)
+				oldClient.Conn.Close()
+			}
 			h.clients[c.UserID] = c
 			h.mu.Unlock()
 			h.broadcastOnlineUsers()
 
 		case c := <-h.unregister:
 			h.mu.Lock()
-			if _, ok := h.clients[c.UserID]; ok {
+			if currentClient, ok := h.clients[c.UserID]; ok && currentClient == c {
 				delete(h.clients, c.UserID)
 				close(c.Send)
 			}
@@ -176,15 +186,17 @@ func (h *WSHub) broadcast(msg []byte) {
 
 func (h *WSHub) broadcastOnlineUsers() {
 	h.mu.RLock()
-	users := make([]map[string]interface{}, 0, len(h.clients))
-	for _, c := range h.clients {
-		users = append(users, map[string]interface{}{
-			"user_id":   c.UserID,
-			"user_name": c.UserName,
-			"rating":    c.Rating,
-			"tier":      c.Tier,
-			"image_url": c.ImageURL,
-		})
+	users := make([]map[string]interface{}, 0)
+	for id, c := range h.clients {
+		if id != "" && id != "null" && id != "undefined" {
+			users = append(users, map[string]interface{}{
+				"user_id":   c.UserID,
+				"user_name": c.UserName,
+				"rating":    c.Rating,
+				"tier":      c.Tier,
+				"image_url": c.ImageURL,
+			})
+		}
 	}
 	h.mu.RUnlock()
 
