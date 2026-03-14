@@ -19,7 +19,6 @@ import {
 } from "lucide-react";
 import { Orbitron } from "next/font/google";
 import Link from "next/link";
-// FIX: Import our new Global Hook instead of the direct WebSocket!
 import { useGlobalWS } from "@/components/WebSocketProvider";
 
 const orbitron = Orbitron({ subsets: ["latin"], weight: ["700", "900"] });
@@ -70,6 +69,12 @@ const TIER_CONFIG: Record<string, { color: string; glow: string; bg: string }> =
 const getTier = (tier: string) =>
   TIER_CONFIG[tier.toLowerCase()] || TIER_CONFIG["newbie"];
 
+const DIFF_COLORS: Record<string, string> = {
+  Easy: "#4ade80",
+  Medium: "#fbbf24",
+  Hard: "#f87171",
+};
+
 function RatingBar({ rating }: { rating: number }) {
   const pct = Math.min(100, (rating / 1800) * 100);
   const color =
@@ -111,8 +116,11 @@ export default function ArenaPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [myNodeId, setMyNodeId] = useState<string | null>(null);
+  const [difficulty, setDifficulty] = useState<"Easy" | "Medium" | "Hard">(
+    "Easy",
+  );
+  const [mode, setMode] = useState<"same" | "random">("same");
 
-  // FIX: Destructure exactly what we need from the global provider!
   const {
     send,
     connected,
@@ -128,12 +136,13 @@ export default function ArenaPage() {
     setMyNodeId(uid);
     fetch(`${API}users`)
       .then((r) => r.json())
-      .then((data) => {
-        const sorted = data.sort(
-          (a: NodeUser, b: NodeUser) => b.current_rating - a.current_rating,
-        );
-        setAllUsers(sorted);
-      })
+      .then((data) =>
+        setAllUsers(
+          data.sort(
+            (a: NodeUser, b: NodeUser) => b.current_rating - a.current_rating,
+          ),
+        ),
+      )
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
@@ -163,6 +172,8 @@ export default function ArenaPage() {
       send("challenge", {
         to_id: opponent.id,
         contest_id: contestId,
+        difficulty,
+        mode,
       });
       setWaitingFor(contestId);
     } catch {
@@ -398,7 +409,6 @@ export default function ArenaPage() {
                 Challenge online nodes to a real-time duel
               </p>
             </div>
-
             <div style={{ position: "relative" }}>
               <Search
                 size={13}
@@ -434,6 +444,108 @@ export default function ArenaPage() {
                 }
               />
             </div>
+          </div>
+        </div>
+
+        <div
+          style={{
+            display: "flex",
+            gap: 12,
+            marginBottom: 24,
+            flexWrap: "wrap",
+            animation: "fadeUp 0.5s ease-out 0.05s both",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              padding: "8px 4px",
+            }}
+          >
+            <span
+              style={{
+                fontSize: 9,
+                color: "#52525b",
+                letterSpacing: "0.2em",
+                textTransform: "uppercase",
+              }}
+            >
+              Difficulty:
+            </span>
+            {(["Easy", "Medium", "Hard"] as const).map((d) => (
+              <button
+                key={d}
+                onClick={() => setDifficulty(d)}
+                style={{
+                  padding: "5px 14px",
+                  borderRadius: 8,
+                  border: `1px solid ${difficulty === d ? DIFF_COLORS[d] + "60" : "rgba(255,255,255,0.07)"}`,
+                  background:
+                    difficulty === d ? DIFF_COLORS[d] + "15" : "transparent",
+                  color: difficulty === d ? DIFF_COLORS[d] : "#52525b",
+                  fontFamily: "ui-monospace,monospace",
+                  fontSize: 9,
+                  fontWeight: 700,
+                  letterSpacing: "0.15em",
+                  textTransform: "uppercase",
+                  cursor: "pointer",
+                  transition: "all 0.2s",
+                }}
+              >
+                {d}
+              </button>
+            ))}
+          </div>
+          <div
+            style={{
+              width: 1,
+              background: "rgba(255,255,255,0.05)",
+              margin: "0 4px",
+            }}
+          />
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              padding: "8px 4px",
+            }}
+          >
+            <span
+              style={{
+                fontSize: 9,
+                color: "#52525b",
+                letterSpacing: "0.2em",
+                textTransform: "uppercase",
+              }}
+            >
+              Problem:
+            </span>
+            {(["same", "random"] as const).map((m) => (
+              <button
+                key={m}
+                onClick={() => setMode(m)}
+                style={{
+                  padding: "5px 14px",
+                  borderRadius: 8,
+                  border: `1px solid ${mode === m ? "rgba(99,102,241,0.5)" : "rgba(255,255,255,0.07)"}`,
+                  background:
+                    mode === m ? "rgba(99,102,241,0.15)" : "transparent",
+                  color: mode === m ? "#818cf8" : "#52525b",
+                  fontFamily: "ui-monospace,monospace",
+                  fontSize: 9,
+                  fontWeight: 700,
+                  letterSpacing: "0.15em",
+                  textTransform: "uppercase",
+                  cursor: "pointer",
+                  transition: "all 0.2s",
+                }}
+              >
+                {m === "same" ? "⚔ Same" : "🎲 Random"}
+              </button>
+            ))}
           </div>
         </div>
 
@@ -693,7 +805,6 @@ export default function ArenaPage() {
                         </div>
                       </div>
                     </div>
-
                     <div style={{ textAlign: "right", flexShrink: 0 }}>
                       <div
                         className={orbitron.className}
