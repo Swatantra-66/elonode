@@ -2,6 +2,7 @@ import React from "react";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Orbitron } from "next/font/google";
 import Sidebar from "@/components/Sidebar";
+import { WebSocketProvider } from "@/components/WebSocketProvider";
 import { ClerkProvider } from "@clerk/nextjs";
 import { dark } from "@clerk/themes";
 import { Analytics } from "@vercel/analytics/react";
@@ -161,10 +162,13 @@ export default function RootLayout({
         <body
           className={`${geistSans.variable} ${geistMono.variable} ${orbitron.variable} antialiased flex min-h-screen text-zinc-50 overflow-hidden`}
         >
-          <Sidebar />
-          <main className="flex-1 overflow-y-auto h-screen relative">
-            {children}
-          </main>
+          <WebSocketProvider>
+            <Sidebar />
+            <main className="flex-1 overflow-y-auto h-screen relative">
+              {children}
+            </main>
+          </WebSocketProvider>
+
           <Analytics />
           <SpeedInsights />
         </body>
