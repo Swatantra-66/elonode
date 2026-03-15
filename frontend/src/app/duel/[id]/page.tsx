@@ -1221,15 +1221,14 @@ function DuelRoomInner() {
             className="bg-[#0f1015] border border-rose-500/30 rounded-2xl p-8 max-w-sm w-full mx-4 text-center font-mono"
             style={{ animation: "modalIn 0.25s ease-out" }}
           >
-            <div className="text-3xl mb-4">💀</div>
             <h3
               className={`${orbitron.className} text-lg font-black text-white uppercase tracking-tight mb-2`}
             >
               Forfeit?
             </h3>
             <p className="text-zinc-500 text-[11px] leading-relaxed mb-6">
-              This will count as a loss. Your opponent wins and ratings update
-              immediately.
+              Your opponent will win immediately and ratings will update. This
+              cannot be undone.
             </p>
             <div className="flex gap-3">
               <button
@@ -1241,6 +1240,7 @@ function DuelRoomInner() {
               <button
                 onClick={async () => {
                   setShowForfeitConfirm(false);
+                  localStorage.removeItem("elonode_active_contest");
                   await handleLeave();
                 }}
                 className="flex-1 py-3 rounded-xl font-mono text-[10px] font-bold uppercase tracking-widest cursor-pointer border-0 text-white transition-all"
@@ -1249,7 +1249,7 @@ function DuelRoomInner() {
                   boxShadow: "0 4px 16px rgba(239,68,68,0.3)",
                 }}
               >
-                Forfeit
+                Yes, Forfeit
               </button>
             </div>
           </div>
