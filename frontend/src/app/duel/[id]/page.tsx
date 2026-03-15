@@ -857,10 +857,89 @@ function DuelRoomInner() {
   if (phase === "won" || phase === "lost") {
     const won = phase === "won";
     return (
-      <div className="min-h-screen bg-[#05060b] flex items-center justify-center font-mono">
-        <style>{`@keyframes winPop{0%{transform:scale(0.85) translateY(20px);opacity:0}100%{transform:scale(1) translateY(0);opacity:1}}`}</style>
+      <div className="min-h-screen bg-[#05060b] flex items-center justify-center font-mono overflow-hidden relative">
+        <style>{`
+          @keyframes winPop{0%{transform:scale(0.85) translateY(20px);opacity:0}100%{transform:scale(1) translateY(0);opacity:1}}
+          @keyframes confettiFall{0%{transform:translateY(-20px) rotate(0deg);opacity:1}100%{transform:translateY(110vh) rotate(720deg);opacity:0}}
+          @keyframes burst{0%{transform:scale(0);opacity:1}100%{transform:scale(1);opacity:0}}
+        `}</style>
+
+        {won && (
+          <>
+            {[...Array(60)].map((_, i) => {
+              const colors = [
+                "#4ade80",
+                "#fbbf24",
+                "#818cf8",
+                "#f87171",
+                "#22d3ee",
+                "#fb923c",
+                "#34d399",
+                "#e879f9",
+              ];
+              const color = colors[i % colors.length];
+              const left = `${Math.random() * 100}%`;
+              const delay = `${Math.random() * 3}s`;
+              const dur = `${2.5 + Math.random() * 2}s`;
+              const size = `${6 + Math.random() * 8}px`;
+              const shape = i % 3 === 0 ? "50%" : i % 3 === 1 ? "0%" : "2px";
+              return (
+                <div
+                  key={i}
+                  style={{
+                    position: "absolute",
+                    top: "-20px",
+                    left,
+                    width: size,
+                    height: size,
+                    background: color,
+                    borderRadius: shape,
+                    animation: `confettiFall ${dur} ${delay} ease-in forwards`,
+                    zIndex: 0,
+                  }}
+                />
+              );
+            })}
+            {[...Array(8)].map((_, i) => {
+              const colors = [
+                "#4ade80",
+                "#fbbf24",
+                "#818cf8",
+                "#f87171",
+                "#22d3ee",
+              ];
+              const color = colors[i % colors.length];
+              const positions = [
+                { top: "10%", left: "5%" },
+                { top: "20%", left: "90%" },
+                { top: "5%", left: "50%" },
+                { top: "30%", left: "15%" },
+                { top: "15%", left: "75%" },
+                { top: "40%", left: "40%" },
+                { top: "8%", left: "30%" },
+                { top: "25%", left: "60%" },
+              ];
+              return (
+                <div
+                  key={i}
+                  style={{
+                    position: "absolute",
+                    ...positions[i],
+                    width: 80,
+                    height: 80,
+                    zIndex: 0,
+                    animation: `burst 0.8s ${i * 0.15}s ease-out forwards`,
+                    background: `radial-gradient(circle, ${color}60 0%, transparent 70%)`,
+                    borderRadius: "50%",
+                  }}
+                />
+              );
+            })}
+          </>
+        )}
+
         <div
-          className="text-center max-w-lg px-8"
+          className="text-center max-w-lg px-8 relative z-10"
           style={{ animation: "winPop 0.55s cubic-bezier(0.34,1.56,0.64,1)" }}
         >
           <h1
