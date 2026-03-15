@@ -484,6 +484,37 @@ function DuelRoomInner() {
         }
       } catch {}
 
+      const savedRaw = localStorage.getItem("elonode_active_contest");
+      if (savedRaw) {
+        try {
+          const saved = JSON.parse(savedRaw);
+          if (
+            saved.contestId === duelId &&
+            saved.phase === "dueling" &&
+            Date.now() - saved.timestamp < 10 * 60 * 1000
+          ) {
+            setPhase("dueling");
+            const remaining = Math.max(
+              0,
+              (saved.timerSecs || 900) -
+                Math.floor((Date.now() - saved.timestamp) / 1000),
+            );
+            setTimer(remaining);
+            timerRef.current = setInterval(() => {
+              setTimer((prev) => {
+                if (prev <= 1) {
+                  clearInterval(timerRef.current!);
+                  setPhase("lost");
+                  return 0;
+                }
+                return prev - 1;
+              });
+            }, 1000);
+            return;
+          }
+        } catch {}
+      }
+
       setPhase("waiting");
     };
     init();
@@ -503,6 +534,8 @@ function DuelRoomInner() {
           difficulty,
           mode: problemMode,
           url,
+          phase,
+          timerSecs: timer,
           timestamp: Date.now(),
         }),
       );
