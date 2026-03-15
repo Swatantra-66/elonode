@@ -8,6 +8,7 @@ import { ArrowLeft, ChevronRight, Zap } from "lucide-react";
 import Editor from "@monaco-editor/react";
 import Link from "next/link";
 import { useWebSocket } from "@/hooks/useWebSocket";
+import { wrapCode } from "@/hooks/codeWrapper";
 
 const orbitron = Orbitron({
   subsets: ["latin"],
@@ -40,6 +41,7 @@ interface Problem {
   timerSecs: number;
   tags: string[];
   leetcodeUrl: string;
+  metaData: string;
 }
 
 interface OpponentInfo {
@@ -280,6 +282,7 @@ function DuelRoomInner() {
   const [opponentReady, setOpponentReady] = useState(false);
   const [editorLocked, setEditorLocked] = useState(false);
   const [resultMsg, setResultMsg] = useState("");
+  const [problemPanelOpen, setProblemPanelOpen] = useState(true);
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const opponentRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -420,6 +423,7 @@ function DuelRoomInner() {
           timerSecs: data.timer_secs,
           tags: data.tags || [],
           leetcodeUrl: data.leetcode_url,
+          metaData: data.meta_data || "",
         };
         setProblem(p);
         setCode(getStarterCode(languageRef.current));
@@ -521,7 +525,11 @@ function DuelRoomInner() {
       .slice(0, 3);
 
     if (exampleInputs.length === 0) {
-      const result = await runCode(code, language, "");
+      const result = await runCode(
+        wrapCode(code, language, problem.metaData, problem.examples),
+        language,
+        "",
+      );
       const passed = result.stderr === "" && result.status === "Accepted";
       setTestResults([passed ? "passed" : "failed"]);
       if (passed) {
@@ -553,7 +561,7 @@ function DuelRoomInner() {
       results[i] = "running";
       setTestResults([...results]);
       const { stdout, stderr, status } = await runCode(
-        code,
+        wrapCode(code, language, problem.metaData, problem.examples),
         language,
         exampleInputs[i],
       );
@@ -1145,92 +1153,163 @@ function DuelRoomInner() {
       </div>
 
       <div className="flex flex-1 overflow-hidden">
-        <div className="w-[42%] border-r border-white/5 flex flex-col overflow-hidden">
-          <div className="flex border-b border-white/5 px-4 flex-shrink-0">
-            {(["problem", "constraints"] as const).map((t) => (
-              <button
-                key={t}
-                onClick={() => setTab(t)}
-                className="px-3 py-3 text-[9px] font-bold uppercase tracking-widest cursor-pointer border-0 bg-transparent transition-colors"
+        {problemPanelOpen && (
+          <div className="w-[42%] border-r border-white/5 flex flex-col overflow-hidden">
+            <div className="flex border-b border-white/5 px-4 flex-shrink-0">
+              {(["problem", "constraints"] as const).map((t) => (
+                <button
+                  key={t}
+                  onClick={() => setTab(t)}
+                  className="px-3 py-3 text-[9px] font-bold uppercase tracking-widest cursor-pointer border-0 bg-transparent transition-colors"
+                  style={{
+                    color: tab === t ? "#e4e4e7" : "#3f3f46",
+                    borderBottom:
+                      tab === t ? "2px solid #6366f1" : "2px solid transparent",
+                    marginBottom: -1,
+                  }}
+                >
+                  {t}
+                </button>
+              ))}
+              <div className="ml-auto flex items-center gap-3 self-center">
+                {problem && (
+                  <a
+                    href={problem.leetcodeUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center gap-1 text-[9px] text-zinc-700 hover:text-indigo-400 transition-colors tracking-widest uppercase"
+                  >
+                    LC ↗
+                  </a>
+                )}
+                <button
+                  onClick={() => setProblemPanelOpen(false)}
+                  className="text-zinc-700 hover:text-zinc-400 transition-colors text-[10px] font-mono tracking-widest cursor-pointer border-0 bg-transparent px-1"
+                  title="Collapse panel"
+                >
+                  ◀
+                </button>
+              </div>
+            </div>
+            <div className="flex-1 overflow-y-auto p-5">
+              {tab === "problem" && problem && (
+                <div>
+                  <div className="flex items-center gap-3 mb-5">
+                    <h2
+                      className={`${orbitron.className} text-base font-bold text-white`}
+                    >
+                      {problem.title}
+                    </h2>
+                    <span
+                      className="text-[9px] px-2 py-0.5 rounded"
+                      style={{
+                        background: `${diffColor}15`,
+                        border: `1px solid ${diffColor}30`,
+                        color: diffColor,
+                      }}
+                    >
+                      {problem.difficulty}
+                    </span>
+                  </div>
+                  <div
+                    className="text-[12.5px] text-zinc-300 leading-7 tracking-wide whitespace-pre-line font-sans"
+                    style={{ lineHeight: "1.85", letterSpacing: "0.01em" }}
+                  >
+                    {problem.content.split("\n").map((line, i) => {
+                      if (
+                        line.startsWith("Example") ||
+                        line.startsWith("Input:") ||
+                        line.startsWith("Output:") ||
+                        line.startsWith("Explanation:")
+                      ) {
+                        return (
+                          <p
+                            key={i}
+                            className="text-zinc-400 font-mono text-[11px] my-1"
+                          >
+                            {line}
+                          </p>
+                        );
+                      }
+                      if (
+                        line.startsWith("Constraints:") ||
+                        line.startsWith("Note:") ||
+                        line.startsWith("Follow up")
+                      ) {
+                        return (
+                          <p
+                            key={i}
+                            className="text-indigo-400 font-mono text-[10px] uppercase tracking-widest mt-4 mb-1"
+                          >
+                            {line}
+                          </p>
+                        );
+                      }
+                      return (
+                        <p key={i} className="text-zinc-300 mb-2">
+                          {line}
+                        </p>
+                      );
+                    })}
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 mt-5">
+                    {problem.tags.slice(0, 5).map((tag) => (
+                      <span
+                        key={tag}
+                        className="text-[8px] px-2 py-0.5 rounded bg-zinc-800/60 text-zinc-400 tracking-widest border border-zinc-700"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {tab === "constraints" && problem && (
+                <div className="space-y-3">
+                  <p className="text-[10px] text-zinc-500 tracking-widest uppercase mb-4 font-mono">
+                    Example Test Cases
+                  </p>
+                  {problem.examples
+                    .split("\n")
+                    .filter((l) => l.trim())
+                    .map((line, i) => (
+                      <div
+                        key={i}
+                        className="flex items-start gap-3 p-3 rounded-lg bg-white/[0.03] border border-white/[0.07]"
+                      >
+                        <div className="w-1 h-1 rounded-full bg-indigo-500 flex-shrink-0 mt-1.5" />
+                        <span className="text-[11px] text-zinc-300 font-mono">
+                          {line}
+                        </span>
+                      </div>
+                    ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {!problemPanelOpen && (
+          <div className="flex flex-col border-r border-white/5 flex-shrink-0">
+            <button
+              onClick={() => setProblemPanelOpen(true)}
+              className="flex flex-col items-center gap-2 px-2 py-4 text-zinc-700 hover:text-zinc-400 transition-colors cursor-pointer border-0 bg-transparent h-full justify-start pt-4"
+              title="Expand panel"
+            >
+              <span className="text-[10px] font-mono">▶</span>
+              <span
+                className="text-[8px] font-mono tracking-widest uppercase writing-mode-vertical"
                 style={{
-                  color: tab === t ? "#e4e4e7" : "#3f3f46",
-                  borderBottom:
-                    tab === t ? "2px solid #6366f1" : "2px solid transparent",
-                  marginBottom: -1,
+                  writingMode: "vertical-rl",
+                  transform: "rotate(180deg)",
+                  letterSpacing: "0.2em",
                 }}
               >
-                {t}
-              </button>
-            ))}
-            {problem && (
-              <a
-                href={problem.leetcodeUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="ml-auto flex items-center gap-1 text-[9px] text-zinc-700 hover:text-indigo-400 transition-colors tracking-widest uppercase self-center"
-              >
-                LC ↗
-              </a>
-            )}
+                Problem
+              </span>
+            </button>
           </div>
-          <div className="flex-1 overflow-y-auto p-5">
-            {tab === "problem" && problem && (
-              <div>
-                <div className="flex items-center gap-3 mb-4">
-                  <h2
-                    className={`${orbitron.className} text-base font-bold text-white`}
-                  >
-                    {problem.title}
-                  </h2>
-                  <span
-                    className="text-[9px] px-2 py-0.5 rounded"
-                    style={{
-                      background: `${diffColor}15`,
-                      border: `1px solid ${diffColor}30`,
-                      color: diffColor,
-                    }}
-                  >
-                    {problem.difficulty}
-                  </span>
-                </div>
-                <p className="text-[12px] text-zinc-500 leading-loose tracking-wide whitespace-pre-line">
-                  {problem.content}
-                </p>
-                <div className="flex flex-wrap gap-1.5 mt-4">
-                  {problem.tags.slice(0, 5).map((tag) => (
-                    <span
-                      key={tag}
-                      className="text-[8px] px-2 py-0.5 rounded bg-zinc-800/60 text-zinc-600 tracking-widest border border-zinc-800"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-            {tab === "constraints" && problem && (
-              <div className="space-y-3">
-                <p className="text-[10px] text-zinc-600 tracking-widest uppercase mb-4">
-                  Example Test Cases
-                </p>
-                {problem.examples
-                  .split("\n")
-                  .filter((l) => l.trim())
-                  .map((line, i) => (
-                    <div
-                      key={i}
-                      className="flex items-start gap-3 p-3 rounded-lg bg-white/[0.02] border border-white/[0.04]"
-                    >
-                      <div className="w-1 h-1 rounded-full bg-indigo-500 flex-shrink-0 mt-1.5" />
-                      <span className="text-[11px] text-zinc-500 font-mono">
-                        {line}
-                      </span>
-                    </div>
-                  ))}
-              </div>
-            )}
-          </div>
-        </div>
+        )}
 
         <div className="flex-1 flex flex-col overflow-hidden">
           <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/5 flex-shrink-0">
