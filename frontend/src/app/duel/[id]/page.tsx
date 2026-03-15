@@ -490,7 +490,7 @@ function DuelRoomInner() {
   }, [duelId, fetchProblem, searchParams]);
 
   const [showLeaveWarning, setShowLeaveWarning] = useState(false);
-
+  const [showForfeitConfirm, setShowForfeitConfirm] = useState(false);
   useEffect(() => {
     if (phase === "dueling" || phase === "waiting" || phase === "countdown") {
       const url = window.location.href;
@@ -1131,7 +1131,7 @@ function DuelRoomInner() {
       {showLeaveWarning && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
           <div
-            className="bg-[#0f1015] border border-rose-500/30 rounded-2xl p-8 max-w-sm w-full mx-4 text-center font-mono"
+            className="bg-[#0f1015] border border-amber-500/30 rounded-2xl p-8 max-w-sm w-full mx-4 text-center font-mono"
             style={{ animation: "modalIn 0.25s ease-out" }}
           >
             <div className="text-3xl mb-4">⚠️</div>
@@ -1140,20 +1140,74 @@ function DuelRoomInner() {
             >
               Leave Duel?
             </h3>
-            <p className="text-zinc-500 text-[11px] leading-relaxed mb-6">
-              Leaving will count as a forfeit. Your opponent will win and the
-              contest will be finalized.
+            <p className="text-zinc-500 text-[11px] leading-relaxed mb-2">
+              You can rejoin within{" "}
+              <span className="text-amber-400 font-bold">10 minutes</span> from
+              the sidebar.
+            </p>
+            <p className="text-zinc-600 text-[10px] leading-relaxed mb-6">
+              Your opponent's contest will continue. Come back before time runs
+              out!
             </p>
             <div className="flex gap-3">
               <button
                 onClick={() => setShowLeaveWarning(false)}
+                className="flex-1 py-3 rounded-xl font-mono text-[10px] font-bold uppercase tracking-widest cursor-pointer border border-indigo-500/30 text-indigo-400 hover:border-indigo-500/60 transition-all bg-transparent"
+              >
+                Stay in Duel
+              </button>
+              <button
+                onClick={() => {
+                  setShowLeaveWarning(false);
+                  localStorage.setItem(
+                    "elonode_active_contest",
+                    JSON.stringify({
+                      contestId: duelId,
+                      opponent: opponent.name,
+                      opponentId: opponent.id,
+                      difficulty,
+                      mode: problemMode,
+                      url: window.location.href,
+                      timestamp: Date.now(),
+                    }),
+                  );
+                  router.push("/arena");
+                }}
+                className="flex-1 py-3 rounded-xl font-mono text-[10px] font-bold uppercase tracking-widest cursor-pointer border border-amber-500/30 text-amber-400 hover:border-amber-500/60 transition-all bg-transparent"
+              >
+                Leave (Rejoin Later)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showForfeitConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+          <div
+            className="bg-[#0f1015] border border-rose-500/30 rounded-2xl p-8 max-w-sm w-full mx-4 text-center font-mono"
+            style={{ animation: "modalIn 0.25s ease-out" }}
+          >
+            <div className="text-3xl mb-4">💀</div>
+            <h3
+              className={`${orbitron.className} text-lg font-black text-white uppercase tracking-tight mb-2`}
+            >
+              Forfeit?
+            </h3>
+            <p className="text-zinc-500 text-[11px] leading-relaxed mb-6">
+              This will count as a loss. Your opponent wins and ratings update
+              immediately.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowForfeitConfirm(false)}
                 className="flex-1 py-3 rounded-xl font-mono text-[10px] font-bold uppercase tracking-widest cursor-pointer border border-white/10 text-zinc-400 hover:text-white hover:border-white/20 transition-all bg-transparent"
               >
-                Stay
+                Cancel
               </button>
               <button
                 onClick={async () => {
-                  setShowLeaveWarning(false);
+                  setShowForfeitConfirm(false);
                   await handleLeave();
                 }}
                 className="flex-1 py-3 rounded-xl font-mono text-[10px] font-bold uppercase tracking-widest cursor-pointer border-0 text-white transition-all"
@@ -1162,7 +1216,7 @@ function DuelRoomInner() {
                   boxShadow: "0 4px 16px rgba(239,68,68,0.3)",
                 }}
               >
-                Leave & Forfeit
+                Forfeit
               </button>
             </div>
           </div>
@@ -1579,7 +1633,7 @@ function DuelRoomInner() {
               </div>
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => setShowLeaveWarning(true)}
+                  onClick={() => setShowForfeitConfirm(true)}
                   className="flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-[10px] font-bold uppercase tracking-widest border cursor-pointer transition-all text-zinc-500 hover:text-rose-400 hover:border-rose-400/30"
                   style={{
                     background: "transparent",
