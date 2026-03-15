@@ -6,6 +6,7 @@ import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { Orbitron } from "next/font/google";
 import { UserButton, SignOutButton, useAuth } from "@clerk/nextjs";
+import UnicornScene from "unicornstudio-react"; // IMPORTED UNICORN STUDIO
 
 const futuristicFont = Orbitron({
   subsets: ["latin"],
@@ -65,6 +66,16 @@ export default function Sidebar() {
 
   return (
     <>
+      {/* HIDDEN WATERMARK CSS */}
+      <style>{`
+        a[href*="unicorn.studio"] {
+          display: none !important;
+          opacity: 0 !important;
+          visibility: hidden !important;
+          pointer-events: none !important;
+        }
+      `}</style>
+
       <button
         className="md:hidden fixed top-4 left-4 z-50 p-2 bg-zinc-900 rounded-md border border-zinc-800 text-zinc-400"
         onClick={() => setIsOpen(!isOpen)}
@@ -73,11 +84,31 @@ export default function Sidebar() {
       </button>
 
       <div
-        className={`fixed inset-y-0 left-0 z-40 w-64 bg-zinc-950 border-r border-zinc-800 transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-40 w-64 bg-black border-r border-zinc-800 transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 overflow-hidden ${
           isOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div className="flex flex-col h-full p-8 overflow-y-auto">
+        {/* --- UNICORN STUDIO BACKGROUND (Z-0) --- */}
+        {/* Scaled to 150% and centered to shift the bright spot slightly and hide edges */}
+        <div
+          className="absolute inset-0 z-0 flex items-center justify-center pointer-events-none"
+          style={{ width: "150%", height: "150%", top: "-25%", left: "-25%" }}
+        >
+          <UnicornScene
+            projectId="jQFuPrfohqDwL6UqkSt8"
+            width="100%"
+            height="100%"
+            scale={1}
+            dpi={1.5}
+            sdkUrl="https://cdn.jsdelivr.net/gh/hiunicornstudio/unicornstudio.js@2.1.4/dist/unicornStudio.umd.js"
+          />
+        </div>
+
+        {/* --- DARK OVERLAY FOR TEXT READABILITY (Z-10) --- */}
+        <div className="absolute inset-0 z-10 bg-zinc-950/80 backdrop-blur-[2px]" />
+
+        {/* --- CONTENT WRAPPER (Z-20) --- */}
+        <div className="relative z-20 flex flex-col h-full p-8 overflow-y-auto">
           <Link
             href="/"
             className="inline-block transition-opacity hover:opacity-75 cursor-pointer"
@@ -93,13 +124,13 @@ export default function Sidebar() {
 
           <nav className="flex flex-col gap-8 flex-1">
             <div className="space-y-4">
-              <p className="text-[10px] text-zinc-600 font-bold uppercase tracking-[0.3em] mb-4">
+              <p className="text-[10px] text-emerald-500/80 font-bold uppercase tracking-[0.3em] mb-4">
                 Core Interface
               </p>
 
               <Link
                 href={isAdmin ? "/admin" : "#"}
-                className={`uppercase tracking-widest text-[11px] font-bold transition-all border-l-2 pl-4 py-1 flex items-center gap-3 ${pathname === "/admin" ? "border-white text-white" : "border-transparent text-zinc-500 hover:text-zinc-300"}`}
+                className={`uppercase tracking-widest text-[11px] font-bold transition-all border-l-2 pl-4 py-1 flex items-center gap-3 ${pathname === "/admin" ? "border-emerald-400 text-white" : "border-transparent text-zinc-400 hover:text-zinc-200 hover:border-zinc-700"}`}
               >
                 <span>Admin Panel</span>
                 {!isAdmin && (
@@ -109,48 +140,48 @@ export default function Sidebar() {
 
               <Link
                 href="/arena"
-                className={`uppercase tracking-widest text-[11px] font-bold transition-all border-l-2 pl-4 py-1 flex items-center gap-3 ${pathname === "/arena" ? "border-white text-white" : "border-transparent text-zinc-500 hover:text-zinc-300"}`}
+                className={`uppercase tracking-widest text-[11px] font-bold transition-all border-l-2 pl-4 py-1 flex items-center gap-3 ${pathname === "/arena" ? "border-emerald-400 text-white" : "border-transparent text-zinc-400 hover:text-zinc-200 hover:border-zinc-700"}`}
               >
                 Join Contest
               </Link>
 
               <Link
                 href="/leaderboard"
-                className={`uppercase tracking-widest text-[11px] font-bold transition-all border-l-2 pl-4 py-1 flex items-center gap-3 ${pathname === "/leaderboard" ? "border-white text-white" : "border-transparent text-zinc-500 hover:text-zinc-300"}`}
+                className={`uppercase tracking-widest text-[11px] font-bold transition-all border-l-2 pl-4 py-1 flex items-center gap-3 ${pathname === "/leaderboard" ? "border-emerald-400 text-white" : "border-transparent text-zinc-400 hover:text-zinc-200 hover:border-zinc-700"}`}
               >
                 Leaderboard
               </Link>
 
               <Link
                 href="/contests"
-                className={`uppercase tracking-widest text-[11px] font-bold transition-all border-l-2 pl-4 py-1 flex items-center gap-3 ${pathname === "/contests" ? "border-white text-white" : "border-transparent text-zinc-500 hover:text-zinc-300"}`}
+                className={`uppercase tracking-widest text-[11px] font-bold transition-all border-l-2 pl-4 py-1 flex items-center gap-3 ${pathname === "/contests" ? "border-emerald-400 text-white" : "border-transparent text-zinc-400 hover:text-zinc-200 hover:border-zinc-700"}`}
               >
                 Contest Log
               </Link>
 
               <Link
                 href="/history"
-                className={`uppercase tracking-widest text-[11px] font-bold transition-all border-l-2 pl-4 py-1 flex items-center gap-3 ${pathname === "/history" ? "border-white text-white" : "border-transparent text-zinc-500 hover:text-zinc-300"}`}
+                className={`uppercase tracking-widest text-[11px] font-bold transition-all border-l-2 pl-4 py-1 flex items-center gap-3 ${pathname === "/history" ? "border-emerald-400 text-white" : "border-transparent text-zinc-400 hover:text-zinc-200 hover:border-zinc-700"}`}
               >
                 Rating History
               </Link>
             </div>
 
             <div className="space-y-4">
-              <p className="text-[10px] text-zinc-600 font-bold uppercase tracking-[0.3em] mb-4">
+              <p className="text-[10px] text-emerald-500/80 font-bold uppercase tracking-[0.3em] mb-4">
                 System Metrics
               </p>
               <div className="flex flex-col gap-3 pl-4">
                 <div className="flex items-center gap-2 group">
                   <Database
                     size={14}
-                    className="text-zinc-700 group-hover:text-zinc-500 transition-colors"
+                    className="text-zinc-600 group-hover:text-emerald-400 transition-colors"
                   />
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-tighter">
+                    <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-tighter">
                       Total Nodes:
                     </span>
-                    <span className="text-xs text-zinc-300 font-mono">
+                    <span className="text-xs text-zinc-200 font-mono">
                       {stats.total_nodes}
                     </span>
                   </div>
@@ -159,13 +190,13 @@ export default function Sidebar() {
                 <div className="flex items-center gap-2 group">
                   <Zap
                     size={14}
-                    className={`group-hover:text-zinc-500 transition-colors ${stats.live_nodes > 0 ? "text-emerald-400" : "text-zinc-700"}`}
+                    className={`transition-colors ${stats.live_nodes > 0 ? "text-emerald-400" : "text-zinc-600 group-hover:text-emerald-400"}`}
                   />
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-tighter">
+                    <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-tighter">
                       Live Nodes:
                     </span>
-                    <span className="text-xs text-zinc-300 font-mono">
+                    <span className="text-xs text-zinc-200 font-mono">
                       {stats.live_nodes}
                     </span>
                   </div>
@@ -174,13 +205,13 @@ export default function Sidebar() {
                 <div className="flex items-center gap-2 group">
                   <Trophy
                     size={14}
-                    className="text-zinc-700 group-hover:text-zinc-500 transition-colors"
+                    className="text-zinc-600 group-hover:text-emerald-400 transition-colors"
                   />
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-tighter">
+                    <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-tighter">
                       System Avg:
                     </span>
-                    <span className="text-xs text-zinc-300 font-mono">
+                    <span className="text-xs text-zinc-200 font-mono">
                       {stats.average_elo}
                     </span>
                   </div>
@@ -191,7 +222,7 @@ export default function Sidebar() {
 
           <div className="mt-8 px-2">
             <p className="text-[9px] text-zinc-500 font-mono uppercase tracking-widest flex items-center gap-2">
-              <span className="w-1 h-1 bg-zinc-800 rounded-full" />
+              <span className="w-1 h-1 bg-emerald-500/50 rounded-full" />
               Sync:{" "}
               {new Date().toLocaleTimeString([], {
                 hour: "2-digit",
@@ -201,7 +232,7 @@ export default function Sidebar() {
           </div>
 
           <div className="mt-auto pt-6">
-            <div className="flex items-center gap-3 px-2 mb-6 border-t border-zinc-900 pt-6">
+            <div className="flex items-center gap-3 px-2 mb-6 border-t border-zinc-800/80 pt-6">
               <div className="relative">
                 <div
                   className={`w-2.5 h-2.5 rounded-full ${isOnline ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]"}`}
@@ -214,7 +245,7 @@ export default function Sidebar() {
                 <p className="text-[10px] font-bold text-zinc-200 uppercase tracking-tighter">
                   {isOnline ? "Engine Healthy" : "Engine Offline"}
                 </p>
-                <p className="text-[9px] text-zinc-600 font-mono tracking-tighter">
+                <p className="text-[9px] text-zinc-500 font-mono tracking-tighter">
                   {isOnline
                     ? "RENDER :: DB_CONNECTED"
                     : "CONNECTION_ERROR :: 500"}
@@ -222,9 +253,9 @@ export default function Sidebar() {
               </div>
             </div>
 
-            <div className="border-t border-zinc-900 pt-4 px-2 space-y-4">
+            <div className="border-t border-zinc-800/80 pt-4 px-2 space-y-4">
               <SignOutButton>
-                <button className="flex items-center gap-3 w-full p-2 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 border border-transparent hover:border-red-500/30 transition-all rounded-md group cursor-pointer">
+                <button className="flex items-center gap-3 w-full p-2 text-zinc-400 hover:text-red-400 hover:bg-red-500/10 border border-transparent hover:border-red-500/30 transition-all rounded-md group cursor-pointer">
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     width="16"
@@ -252,7 +283,7 @@ export default function Sidebar() {
                   appearance={{
                     elements: {
                       userButtonAvatarBox:
-                        "w-8 h-8 border border-zinc-700 hover:border-indigo-500 transition-colors",
+                        "w-8 h-8 border border-zinc-700 hover:border-emerald-500 transition-colors",
                       userButtonPopoverCard:
                         "bg-zinc-900 border border-zinc-800 shadow-2xl",
                     },
@@ -262,7 +293,7 @@ export default function Sidebar() {
                   <span className="text-[9px] text-zinc-500 font-mono uppercase tracking-widest">
                     System Access
                   </span>
-                  <span className="text-[10px] text-zinc-300 font-bold tracking-wider uppercase">
+                  <span className="text-[10px] text-zinc-200 font-bold tracking-wider uppercase">
                     Authenticated
                   </span>
                 </div>
