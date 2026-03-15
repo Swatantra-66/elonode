@@ -1201,6 +1201,8 @@ function DuelRoomInner() {
                       difficulty,
                       mode: problemMode,
                       url: window.location.href,
+                      phase: "dueling",
+                      timerSecs: timer,
                       timestamp: Date.now(),
                     }),
                   );
@@ -1221,6 +1223,7 @@ function DuelRoomInner() {
             className="bg-[#0f1015] border border-rose-500/30 rounded-2xl p-8 max-w-sm w-full mx-4 text-center font-mono"
             style={{ animation: "modalIn 0.25s ease-out" }}
           >
+            <div className="text-3xl mb-4">💀</div>
             <h3
               className={`${orbitron.className} text-lg font-black text-white uppercase tracking-tight mb-2`}
             >
