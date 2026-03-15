@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Menu, X, Database, Zap, Trophy, Lock } from "lucide-react";
 import { useState, useEffect } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Orbitron } from "next/font/google";
 import { UserButton, SignOutButton, useAuth } from "@clerk/nextjs";
 
@@ -15,10 +15,42 @@ const futuristicFont = Orbitron({
 export default function Sidebar() {
   const [isOpen, setIsOpen] = useState(false);
   const pathname = usePathname();
+  const router = useRouter();
 
   const { userId, isLoaded } = useAuth();
   const ADMIN_USER_ID = process.env.NEXT_PUBLIC_ADMIN_USER_ID;
   const isAdmin = isLoaded && userId === ADMIN_USER_ID;
+
+  const [activeContest, setActiveContest] = useState<{
+    contestId: string;
+    opponent: string;
+    url: string;
+    timestamp: number;
+  } | null>(null);
+
+  useEffect(() => {
+    const check = () => {
+      const raw = localStorage.getItem("elonode_active_contest");
+      if (raw) {
+        try {
+          const data = JSON.parse(raw);
+          if (Date.now() - data.timestamp < 10 * 60 * 1000) {
+            setActiveContest(data);
+          } else {
+            localStorage.removeItem("elonode_active_contest");
+            setActiveContest(null);
+          }
+        } catch {
+          setActiveContest(null);
+        }
+      } else {
+        setActiveContest(null);
+      }
+    };
+    check();
+    const iv = setInterval(check, 5000);
+    return () => clearInterval(iv);
+  }, [pathname]);
 
   const [stats, setStats] = useState({
     total_nodes: 0,
@@ -92,6 +124,25 @@ export default function Sidebar() {
           <div className="w-full h-[1px] bg-zinc-800/80 mt-6 mb-8" />
 
           <nav className="flex flex-col gap-8 flex-1">
+            {activeContest && !pathname.startsWith("/duel") && (
+              <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-3">
+                <p className="text-[8px] text-amber-400 font-mono uppercase tracking-widest mb-1 animate-pulse">
+                  ⚡ Active Duel
+                </p>
+                <p className="text-[10px] text-white font-bold uppercase tracking-wide mb-2 truncate">
+                  vs {activeContest.opponent}
+                </p>
+                <button
+                  onClick={() => router.push(activeContest.url)}
+                  className="w-full py-2 rounded-lg font-mono text-[9px] font-bold uppercase tracking-widest border-0 cursor-pointer text-white"
+                  style={{
+                    background: "linear-gradient(135deg,#f59e0b,#d97706)",
+                  }}
+                >
+                  Rejoin →
+                </button>
+              </div>
+            )}
             <div className="space-y-4">
               <p className="text-[10px] text-zinc-600 font-bold uppercase tracking-[0.3em] mb-4">
                 Core Interface
