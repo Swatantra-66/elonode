@@ -437,6 +437,7 @@ func fetchRandomProblem(difficulty string) (*ProblemResponse, error) {
 				difficulty
 				content
 				exampleTestcases
+				metaData
 				codeSnippets {
 					langSlug
 					code
@@ -492,6 +493,7 @@ func fetchRandomProblem(difficulty string) (*ProblemResponse, error) {
 		Tags:         tags,
 		LeetcodeURL:  fmt.Sprintf("https://leetcode.com/problems/%s/", q.TitleSlug),
 		CodeSnippets: snippets,
+		MetaData:     q.MetaData,
 	}, nil
 }
 
