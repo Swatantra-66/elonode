@@ -82,6 +82,8 @@ func main() {
 		api.POST("/contests/:id/finalize", h.FinalizeContest)
 		api.POST("/contests", h.CreateContest)
 		api.POST("/users", h.CreateUser)
+		api.POST("/ai/hint", h.GetHint)
+		api.POST("/ai/review", h.ReviewCode)
 
 		api.DELETE("/contests/:id", RequireAdminAuth(), h.DeleteContest)
 	}
