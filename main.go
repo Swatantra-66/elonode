@@ -78,16 +78,10 @@ func main() {
 		api.GET("/history", h.GetGlobalHistory)
 		api.GET("/problems/random", h.GetRandomProblem)
 		api.GET("/ws", h.ServeWS(hub))
-		api.GET("/hints/:problem_id/:level", h.GetHintByLevel)
-		api.GET("/users/:id/profile", h.GetHackerProfile)
 
 		api.POST("/contests/:id/finalize", h.FinalizeContest)
 		api.POST("/contests", h.CreateContest)
 		api.POST("/users", h.CreateUser)
-		api.POST("/ai/review", h.CyberJudgeReview)
-		api.POST("/ai/hints/generate", h.GenerateHints)
-		api.POST("/admin/matrix-forger", h.MatrixForger)
-		api.POST("/ai/hint", h.GetHint)
 
 		api.DELETE("/contests/:id", RequireAdminAuth(), h.DeleteContest)
 	}
