@@ -1,6 +1,6 @@
 # ELONODE
 
-A high-performance, full-stack application designed to track user ratings and percentiles across competitive programming or 1v1 match environments. Built with a decoupled architecture, it features a custom rating engine that calculates performance trajectories and stores historical match data.
+A coding duel contest platform with a rating system based on a transparent percentile model. Following each contest, it calculates beaten participants to determine a percentile category, assigns a predefined standard performance rating, and updates the user rating using a controlled adjustment formula. Built with a decoupled architecture, it features a custom rating engine that calculates performance trajectories and stores historical match data.
 
 ## Live Website
 
