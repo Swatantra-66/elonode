@@ -4,12 +4,11 @@ import { useEffect, useState, useRef, useCallback, Suspense } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import { Orbitron } from "next/font/google";
-import { ArrowLeft, ChevronRight, Zap, Lightbulb } from "lucide-react";
+import { ArrowLeft, ChevronRight, Zap } from "lucide-react";
 import Editor from "@monaco-editor/react";
 import Link from "next/link";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { wrapCode } from "@/hooks/codeWrapper";
-import { getHint, reviewCode } from "@/hooks/aiService";
 
 const orbitron = Orbitron({
   subsets: ["latin"],
@@ -70,14 +69,68 @@ const fmt = (s: number) =>
   `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 
 const DEFAULT_SNIPPETS: Record<string, string> = {
-  python3: `class Solution:\n    def solve(self, nums: list[int]) -> int:\n        pass\n`,
-  javascript: `/**\n * @param {number[]} nums\n * @return {number}\n */\nvar solve = function(nums) {\n    \n};\n`,
-  typescript: `function solve(nums: number[]): number {\n    \n};\n`,
-  cpp: `#include <bits/stdc++.h>\nusing namespace std;\n\nclass Solution {\npublic:\n    int solve(vector<int>& nums) {\n        \n    }\n};\n`,
-  c: `#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\nint solve(int* nums, int numsSize) {\n    \n}\n\nint main() {\n    return 0;\n}\n`,
-  java: `class Solution {\n    public int solve(int[] nums) {\n        \n    }\n}\n`,
-  golang: `package main\n\nimport "fmt"\n\nfunc solve(nums []int) int {\n    \n}\n\nfunc main() {\n    fmt.Println(solve([]int{}))\n}\n`,
-  rust: `impl Solution {\n    pub fn solve(nums: Vec<i32>) -> i32 {\n        \n    }\n}\n`,
+  python3: `class Solution:
+    def solve(self, nums: list[int]) -> int:
+        pass
+`,
+  javascript: `/**
+ * @param {number[]} nums
+ * @return {number}
+ */
+var solve = function(nums) {
+    
+};
+`,
+  typescript: `function solve(nums: number[]): number {
+    
+};
+`,
+  cpp: `#include <bits/stdc++.h>
+using namespace std;
+
+class Solution {
+public:
+    int solve(vector<int>& nums) {
+        
+    }
+};
+`,
+  c: `#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+int solve(int* nums, int numsSize) {
+    
+}
+
+int main() {
+    return 0;
+}
+`,
+  java: `class Solution {
+    public int solve(int[] nums) {
+        
+    }
+}
+`,
+  golang: `package main
+
+import "fmt"
+
+func solve(nums []int) int {
+    
+}
+
+func main() {
+    fmt.Println(solve([]int{}))
+}
+`,
+  rust: `impl Solution {
+    pub fn solve(nums: Vec<i32>) -> i32 {
+        
+    }
+}
+`,
 };
 
 const LC_LANG_MAP: Record<string, string> = {
@@ -230,19 +283,11 @@ function DuelRoomInner() {
   const [editorLocked, setEditorLocked] = useState(false);
   const [resultMsg, setResultMsg] = useState("");
   const [problemPanelOpen, setProblemPanelOpen] = useState(true);
-  const [showLeaveWarning, setShowLeaveWarning] = useState(false);
-  const [showForfeitConfirm, setShowForfeitConfirm] = useState(false);
-  const [hintText, setHintText] = useState("");
-  const [hintLoading, setHintLoading] = useState(false);
-  const [hintCount, setHintCount] = useState(0);
-  const [reviewText, setReviewText] = useState("");
-  const [reviewLoading, setReviewLoading] = useState(false);
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const opponentRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const snippetsRef = useRef<Record<string, string>>({});
   const languageRef = useRef<string>("python");
-  const startTimeRef = useRef<number>(Date.now());
   const myNodeId =
     typeof window !== "undefined"
       ? localStorage.getItem("elonode_db_id") || ""
@@ -263,7 +308,6 @@ function DuelRoomInner() {
       if (c === 0) {
         clearInterval(iv);
         setPhase("dueling");
-        startTimeRef.current = Date.now();
         if (timerRef.current) clearInterval(timerRef.current);
         timerRef.current = setInterval(() => {
           setTimer((prev) => {
@@ -320,10 +364,7 @@ function DuelRoomInner() {
         setOpponentStatus("submitted");
         setEditorLocked(true);
         setResultMsg("Opponent solved it first.");
-        setReviewLoading(true);
-        setTimeout(() => {
-          setPhase("lost");
-        }, 1500);
+        setTimeout(() => setPhase("lost"), 1500);
       },
     },
   });
@@ -359,6 +400,7 @@ function DuelRoomInner() {
         const res = await fetch(url);
         if (!res.ok) throw new Error();
         const data = await res.json();
+
         const snippetMap: Record<string, string> = {};
         if (data.code_snippets) {
           data.code_snippets.forEach(
@@ -370,6 +412,7 @@ function DuelRoomInner() {
         if (!snippetMap["python3"] && data.starter_code)
           snippetMap["python3"] = data.starter_code;
         snippetsRef.current = snippetMap;
+
         const p: Problem = {
           slug: data.slug,
           title: data.title,
@@ -405,8 +448,10 @@ function DuelRoomInner() {
       const urlDifficulty = (searchParams.get("difficulty") ||
         "Easy") as Difficulty;
       const urlMode = (searchParams.get("mode") || "same") as ProblemMode;
+
       setDifficulty(urlDifficulty);
       setProblemMode(urlMode);
+
       let opponentImageUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(opponentName)}&background=27272a&color=f87171&size=128&bold=true`;
       if (opponentId) {
         try {
@@ -422,10 +467,12 @@ function DuelRoomInner() {
         imageUrl: opponentImageUrl,
         id: opponentId,
       });
+
       await fetchProblem(
         urlDifficulty,
         urlMode === "same" ? duelId : undefined,
       );
+
       try {
         const uid = localStorage.getItem("elonode_db_id");
         if (uid) {
@@ -436,6 +483,7 @@ function DuelRoomInner() {
           }
         }
       } catch {}
+
       const savedRaw = localStorage.getItem("elonode_active_contest");
       if (savedRaw) {
         try {
@@ -446,7 +494,6 @@ function DuelRoomInner() {
             Date.now() - saved.timestamp < 10 * 60 * 1000
           ) {
             setPhase("dueling");
-            startTimeRef.current = Date.now();
             const remaining = Math.max(
               0,
               (saved.timerSecs || 900) -
@@ -467,13 +514,17 @@ function DuelRoomInner() {
           }
         } catch {}
       }
+
       setPhase("waiting");
     };
     init();
   }, [duelId, fetchProblem, searchParams]);
 
+  const [showLeaveWarning, setShowLeaveWarning] = useState(false);
+  const [showForfeitConfirm, setShowForfeitConfirm] = useState(false);
   useEffect(() => {
     if (phase === "dueling" || phase === "waiting" || phase === "countdown") {
+      const url = window.location.href;
       localStorage.setItem(
         "elonode_active_contest",
         JSON.stringify({
@@ -482,15 +533,16 @@ function DuelRoomInner() {
           opponentId: opponent.id,
           difficulty,
           mode: problemMode,
-          url: window.location.href,
+          url,
           phase,
           timerSecs: timer,
           timestamp: Date.now(),
         }),
       );
     }
-    if (phase === "won" || phase === "lost")
+    if (phase === "won" || phase === "lost") {
       localStorage.removeItem("elonode_active_contest");
+    }
   }, [phase, duelId, opponent, difficulty, problemMode]);
 
   useEffect(() => {
@@ -512,37 +564,16 @@ function DuelRoomInner() {
     [],
   );
 
-  const handleHint = useCallback(async () => {
-    if (!problem || hintCount >= 3 || hintLoading) return;
-    setHintLoading(true);
-    const nextHint = hintCount + 1;
-    setHintCount(nextHint);
-    setTimer((prev) => Math.max(0, prev - 120));
-    try {
-      const hint = await getHint({
-        problemTitle: problem.title,
-        problemContent: problem.content,
-        userCode: code,
-        language,
-        hintNumber: nextHint,
-      });
-      setHintText(hint);
-    } catch {
-      setHintText("Hint unavailable right now.");
-    } finally {
-      setHintLoading(false);
-    }
-  }, [problem, hintCount, hintLoading, code, language]);
-
   const handleLeave = useCallback(async () => {
     clearInterval(timerRef.current!);
     clearInterval(opponentRef.current!);
-    if (wsConnected && opponent.id)
+    if (wsConnected && opponent.id) {
       wsSend("leave", {
         contest_id: duelId,
         user_id: myNodeId,
         to_id: opponent.id,
       });
+    }
     await finalizeContest(duelId, opponent.id, myNodeId, API_BASE);
     router.push("/arena");
   }, [duelId, myNodeId, opponent.id, wsConnected, wsSend, router]);
@@ -554,10 +585,12 @@ function DuelRoomInner() {
     setPhase("submitting");
     setMyProgress(100);
     setErrorMsg("");
+
     const exampleInputs = problem.examples
       .split("\n")
       .filter((l) => l.trim())
       .slice(0, 3);
+
     if (exampleInputs.length === 0) {
       const result = await runCode(
         wrapCode(code, language, problem.metaData, problem.examples),
@@ -581,26 +614,16 @@ function DuelRoomInner() {
           } catch {}
         }
         setPhase("won");
-        setReviewLoading(true);
-        reviewCode({
-          problemTitle: problem.title,
-          problemContent: problem.content,
-          userCode: code,
-          language,
-          won: true,
-          timeTaken: Math.floor((Date.now() - startTimeRef.current) / 1000),
-        })
-          .then((r) => setReviewText(r))
-          .catch(() => {})
-          .finally(() => setReviewLoading(false));
       } else {
         setPhase("lost");
       }
       return;
     }
+
     const results: TestStatus[] = Array(exampleInputs.length).fill("pending");
     setTestResults([...results]);
     let allPassed = true;
+
     for (let i = 0; i < exampleInputs.length; i++) {
       results[i] = "running";
       setTestResults([...results]);
@@ -616,6 +639,7 @@ function DuelRoomInner() {
       if (!passed) allPassed = false;
       setTestResults([...results]);
     }
+
     if (!allPassed) {
       setErrorMsg("Some test cases failed. Fix your solution.");
       setPhase("dueling");
@@ -633,9 +657,11 @@ function DuelRoomInner() {
       );
       return;
     }
+
     setEditorLocked(true);
     wsSend("won", { contest_id: duelId, to_id: opponent.id });
     await finalizeContest(duelId, myNodeId, opponent.id, API_BASE);
+
     try {
       const uid = localStorage.getItem("elonode_db_id");
       if (uid) {
@@ -648,19 +674,8 @@ function DuelRoomInner() {
     } catch {
       setRatingChange(72);
     }
+
     setPhase("won");
-    setReviewLoading(true);
-    reviewCode({
-      problemTitle: problem.title,
-      problemContent: problem.content,
-      userCode: code,
-      language,
-      won: true,
-      timeTaken: Math.floor((Date.now() - startTimeRef.current) / 1000),
-    })
-      .then((r) => setReviewText(r))
-      .catch(() => {})
-      .finally(() => setReviewLoading(false));
   }, [
     phase,
     problem,
@@ -692,6 +707,7 @@ function DuelRoomInner() {
     return (
       <div className="min-h-screen bg-[#05060b] font-mono overflow-auto">
         <style>{`@keyframes pulseGlow{0%,100%{opacity:1}50%{opacity:0.5}}`}</style>
+
         <div className="h-12 border-b border-white/5 flex items-center justify-between px-6 bg-black/40">
           <Link
             href="/arena"
@@ -711,6 +727,7 @@ function DuelRoomInner() {
             DUEL <span className="text-indigo-500">ROOM</span>
           </h1>
         </div>
+
         <div className="max-w-6xl mx-auto px-6 py-8 grid grid-cols-3 gap-6">
           <div className="col-span-1 flex flex-col gap-4">
             <div className="rounded-xl bg-white/[0.02] border border-white/[0.05] p-5">
@@ -746,6 +763,7 @@ function DuelRoomInner() {
                 </div>
               </div>
             </div>
+
             <div className="rounded-xl bg-white/[0.02] border border-white/[0.05] p-5">
               <p className="text-[9px] text-zinc-600 tracking-widest uppercase mb-3">
                 Timer
@@ -756,11 +774,13 @@ function DuelRoomInner() {
                 {fmt(problem?.timerSecs || 900)}
               </p>
             </div>
+
             {errorMsg && (
               <p className="text-rose-400 text-[10px] tracking-wide">
                 {errorMsg}
               </p>
             )}
+
             <div className="mt-auto">
               {opponentReady && !iAmReady && (
                 <p className="text-amber-400 text-[10px] tracking-widest uppercase mb-3 animate-pulse">
@@ -795,6 +815,7 @@ function DuelRoomInner() {
               </button>
             </div>
           </div>
+
           <div className="col-span-2 flex flex-col gap-4">
             {problem && (
               <div className="rounded-xl bg-white/[0.02] border border-white/[0.05] p-5">
@@ -828,6 +849,7 @@ function DuelRoomInner() {
                 </div>
               </div>
             )}
+
             <div className="rounded-xl bg-white/[0.02] border border-white/[0.05] p-5">
               <p className="text-[9px] text-zinc-600 tracking-widest uppercase mb-4">
                 Problem Mode
@@ -860,6 +882,7 @@ function DuelRoomInner() {
                   </button>
                 ))}
               </div>
+
               <p className="text-[9px] text-zinc-600 tracking-widest uppercase mb-3">
                 Difficulty
               </p>
@@ -928,12 +951,13 @@ function DuelRoomInner() {
   if (phase === "won" || phase === "lost") {
     const won = phase === "won";
     return (
-      <div className="min-h-screen bg-[#05060b] flex items-center justify-center font-mono overflow-hidden relative py-10">
+      <div className="min-h-screen bg-[#05060b] flex items-center justify-center font-mono overflow-hidden relative">
         <style>{`
           @keyframes winPop{0%{transform:scale(0.85) translateY(20px);opacity:0}100%{transform:scale(1) translateY(0);opacity:1}}
           @keyframes confettiFall{0%{transform:translateY(-20px) rotate(0deg);opacity:1}100%{transform:translateY(110vh) rotate(720deg);opacity:0}}
           @keyframes burst{0%{transform:scale(0);opacity:1}100%{transform:scale(1);opacity:0}}
         `}</style>
+
         {won && (
           <>
             {[...Array(60)].map((_, i) => {
@@ -948,19 +972,23 @@ function DuelRoomInner() {
                 "#e879f9",
               ];
               const color = colors[i % colors.length];
+              const left = `${Math.random() * 100}%`;
+              const delay = `${Math.random() * 3}s`;
+              const dur = `${2.5 + Math.random() * 2}s`;
+              const size = `${6 + Math.random() * 8}px`;
+              const shape = i % 3 === 0 ? "50%" : i % 3 === 1 ? "0%" : "2px";
               return (
                 <div
                   key={i}
                   style={{
                     position: "absolute",
                     top: "-20px",
-                    left: `${Math.random() * 100}%`,
-                    width: `${6 + Math.random() * 8}px`,
-                    height: `${6 + Math.random() * 8}px`,
+                    left,
+                    width: size,
+                    height: size,
                     background: color,
-                    borderRadius:
-                      i % 3 === 0 ? "50%" : i % 3 === 1 ? "0%" : "2px",
-                    animation: `confettiFall ${2.5 + Math.random() * 2}s ${Math.random() * 3}s ease-in forwards`,
+                    borderRadius: shape,
+                    animation: `confettiFall ${dur} ${delay} ease-in forwards`,
                     zIndex: 0,
                   }}
                 />
@@ -974,6 +1002,7 @@ function DuelRoomInner() {
                 "#f87171",
                 "#22d3ee",
               ];
+              const color = colors[i % colors.length];
               const positions = [
                 { top: "10%", left: "5%" },
                 { top: "20%", left: "90%" },
@@ -994,7 +1023,7 @@ function DuelRoomInner() {
                     height: 80,
                     zIndex: 0,
                     animation: `burst 0.8s ${i * 0.15}s ease-out forwards`,
-                    background: `radial-gradient(circle, ${colors[i % colors.length]}60 0%, transparent 70%)`,
+                    background: `radial-gradient(circle, ${color}60 0%, transparent 70%)`,
                     borderRadius: "50%",
                   }}
                 />
@@ -1002,8 +1031,9 @@ function DuelRoomInner() {
             })}
           </>
         )}
+
         <div
-          className="text-center max-w-lg px-8 relative z-10 w-full"
+          className="text-center max-w-lg px-8 relative z-10"
           style={{ animation: "winPop 0.55s cubic-bezier(0.34,1.56,0.64,1)" }}
         >
           <h1
@@ -1015,6 +1045,7 @@ function DuelRoomInner() {
           >
             {won ? "VICTORY" : "DEFEATED"}
           </h1>
+
           {resultMsg && (
             <p
               className="text-[10px] tracking-widest uppercase mb-4"
@@ -1023,6 +1054,7 @@ function DuelRoomInner() {
               {resultMsg}
             </p>
           )}
+
           <div className="flex items-center justify-center gap-6 mb-6">
             <div className="flex flex-col items-center gap-2">
               <Avatar
@@ -1049,7 +1081,8 @@ function DuelRoomInner() {
               </span>
             </div>
           </div>
-          <div className="inline-flex items-center gap-8 bg-white/[0.02] border border-white/[0.05] rounded-2xl px-10 py-6 mb-6">
+
+          <div className="inline-flex items-center gap-8 bg-white/[0.02] border border-white/[0.05] rounded-2xl px-10 py-6 mb-8">
             <div className="text-center">
               <p className="text-[9px] text-zinc-600 tracking-widest uppercase mb-2">
                 Before
@@ -1085,27 +1118,6 @@ function DuelRoomInner() {
               </p>
             </div>
           </div>
-
-          <div className="w-full mb-6">
-            {reviewLoading ? (
-              <div className="rounded-xl border border-indigo-500/20 bg-indigo-500/5 p-4 text-center">
-                <div className="w-5 h-5 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
-                <p className="text-[9px] text-zinc-600 font-mono uppercase tracking-widest">
-                  AI analyzing your code...
-                </p>
-              </div>
-            ) : reviewText ? (
-              <div className="rounded-xl border border-indigo-500/20 bg-indigo-500/5 p-4 text-left">
-                <p className="text-[9px] text-indigo-400 font-mono uppercase tracking-widest mb-3 flex items-center gap-1.5">
-                  <Lightbulb size={10} /> AI Code Review
-                </p>
-                <p className="text-[11.5px] text-zinc-300 leading-relaxed font-mono whitespace-pre-wrap">
-                  {reviewText}
-                </p>
-              </div>
-            ) : null}
-          </div>
-
           <div className="flex gap-3 justify-center">
             <button
               onClick={() => router.push("/arena")}
@@ -1164,7 +1176,7 @@ function DuelRoomInner() {
             <p className="text-zinc-500 text-[11px] leading-relaxed mb-2">
               You can rejoin within{" "}
               <span className="text-amber-400 font-bold">10 minutes</span> from
-              the arena page.
+              the sidebar.
             </p>
             <p className="text-zinc-600 text-[10px] leading-relaxed mb-6">
               Your opponent's contest will continue. Come back before time runs
@@ -1287,6 +1299,7 @@ function DuelRoomInner() {
             />
           </div>
         </div>
+
         <div
           className={`${orbitron.className} text-xl font-black tracking-widest`}
           style={{
@@ -1297,6 +1310,7 @@ function DuelRoomInner() {
         >
           {fmt(timer)}
         </div>
+
         <div className="flex items-center gap-2">
           <span className="text-[9px] text-zinc-600 tracking-widest uppercase truncate max-w-[160px]">
             {problem?.title}
@@ -1398,7 +1412,7 @@ function DuelRoomInner() {
                         line.startsWith("Input:") ||
                         line.startsWith("Output:") ||
                         line.startsWith("Explanation:")
-                      )
+                      ) {
                         return (
                           <p
                             key={i}
@@ -1407,11 +1421,12 @@ function DuelRoomInner() {
                             {line}
                           </p>
                         );
+                      }
                       if (
                         line.startsWith("Constraints:") ||
                         line.startsWith("Note:") ||
                         line.startsWith("Follow up")
-                      )
+                      ) {
                         return (
                           <p
                             key={i}
@@ -1420,6 +1435,7 @@ function DuelRoomInner() {
                             {line}
                           </p>
                         );
+                      }
                       return (
                         <p key={i} className="text-zinc-300 mb-2">
                           {line}
@@ -1437,16 +1453,6 @@ function DuelRoomInner() {
                       </span>
                     ))}
                   </div>
-                  {hintText && (
-                    <div className="mt-4 p-3 rounded-lg border border-amber-500/20 bg-amber-500/5">
-                      <p className="text-[9px] text-amber-400 font-mono uppercase tracking-widest mb-1.5">
-                        💡 Hint {hintCount}/3 · -{hintCount * 2} min penalty
-                      </p>
-                      <p className="text-[11.5px] text-zinc-300 leading-relaxed">
-                        {hintText}
-                      </p>
-                    </div>
-                  )}
                 </div>
               )}
               {tab === "constraints" && problem && (
@@ -1483,7 +1489,7 @@ function DuelRoomInner() {
             >
               <span className="text-[10px] font-mono">▶</span>
               <span
-                className="text-[8px] font-mono tracking-widest uppercase"
+                className="text-[8px] font-mono tracking-widest uppercase writing-mode-vertical"
                 style={{
                   writingMode: "vertical-rl",
                   transform: "rotate(180deg)",
@@ -1532,29 +1538,6 @@ function DuelRoomInner() {
                 <span className="text-[9px] text-rose-400 tracking-widest">
                   ✓ Opponent submitted!
                 </span>
-              )}
-              {phase === "dueling" && (
-                <button
-                  onClick={handleHint}
-                  disabled={hintCount >= 3 || hintLoading}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-mono text-[9px] font-bold uppercase tracking-widest border cursor-pointer transition-all disabled:opacity-40"
-                  style={{
-                    background: "rgba(251,191,36,0.08)",
-                    borderColor: "rgba(251,191,36,0.25)",
-                    color: "#fbbf24",
-                  }}
-                  title={
-                    hintCount >= 3 ? "No more hints" : "-2 min penalty per hint"
-                  }
-                >
-                  {hintLoading ? (
-                    "..."
-                  ) : (
-                    <>
-                      <Lightbulb size={11} /> Hint {hintCount}/3
-                    </>
-                  )}
-                </button>
               )}
               <select
                 value={language}
