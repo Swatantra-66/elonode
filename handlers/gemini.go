@@ -41,7 +41,7 @@ func callGemini(prompt string) (string, error) {
 		return "", fmt.Errorf("GEMINI_API_KEY not set")
 	}
 
-	url := fmt.Sprintf("https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=%s", apiKey)
+	url := fmt.Sprintf("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=%s", apiKey)
 
 	body, _ := json.Marshal(geminiRequest{
 		Contents: []geminiContent{
@@ -79,6 +79,7 @@ func callGemini(prompt string) (string, error) {
 	return gemResp.Candidates[0].Content.Parts[0].Text, nil
 }
 
+// GetHint — POST /api/ai/hint (duel page hint button)
 func (h *Handler) GetHint(c *gin.Context) {
 	var req struct {
 		ProblemTitle   string `json:"problem_title"`
