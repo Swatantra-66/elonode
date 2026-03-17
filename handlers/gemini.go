@@ -111,17 +111,11 @@ Student's current code (%s):
 Give a %s hint (hint #%d of 3). Rules:
 - Do NOT give the full solution
 - Hint 1: Point to the right data structure or approach
-- Hint 2: Give a more specific algorithmic direction  
+- Hint 2: Give a more specific algorithmic direction
 - Hint 3: Give a near-complete approach without actual code
 
 Respond in 2-3 sentences max. Be concise and direct.`,
-		req.ProblemTitle,
-		req.ProblemContent,
-		req.Language,
-		req.UserCode,
-		levelDesc,
-		req.HintNumber,
-	)
+		req.ProblemTitle, req.ProblemContent, req.Language, req.UserCode, levelDesc, req.HintNumber)
 
 	hint, err := callGemini(prompt)
 	if err != nil {
@@ -130,54 +124,4 @@ Respond in 2-3 sentences max. Be concise and direct.`,
 	}
 
 	c.JSON(http.StatusOK, gin.H{"hint": strings.TrimSpace(hint)})
-}
-
-func (h *Handler) ReviewCode(c *gin.Context) {
-	var req struct {
-		ProblemTitle   string `json:"problem_title"`
-		ProblemContent string `json:"problem_content"`
-		UserCode       string `json:"user_code"`
-		Language       string `json:"language"`
-		Won            bool   `json:"won"`
-		TimeTaken      int    `json:"time_taken"`
-	}
-
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	prompt := fmt.Sprintf(`You are a competitive programming coach reviewing a solution submitted during a live duel.
-
-Problem: %s
-Description: %s
-
-Submitted code (%s):
-%s
-
-Result: %s | Time taken: %d seconds
-
-Provide a structured code review with exactly these sections:
-1. **Complexity**: Time and space complexity in Big O notation
-2. **Approach**: What algorithm/technique was used (1 sentence)
-3. **Strengths**: What was done well (1-2 points)
-4. **Improvements**: How to optimize or improve (1-2 points)
-5. **Rating**: Score out of 10 with one line justification
-
-Keep it concise. Total response under 150 words.`,
-		req.ProblemTitle,
-		req.ProblemContent,
-		req.Language,
-		req.UserCode,
-		map[bool]string{true: "WON", false: "LOST"}[req.Won],
-		req.TimeTaken,
-	)
-
-	review, err := callGemini(prompt)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "AI service unavailable"})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"review": strings.TrimSpace(review)})
 }
