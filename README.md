@@ -51,6 +51,10 @@ A coding duel contest platform with a rating system based on a transparent perce
 
 ## System Architecture
 
+<p align="center">
+  <img src="./docs/elonode-flow.svg" alt="EloNode Architecture" width="100%"/>
+</p>
+
 1. **Client Layer:** Next.js provides a responsive UI. Forms submit match data (Winner/Loser UUIDs and Contest UUID) to the backend. Clerk handles session tokens.
 2. **API Layer:** The Go backend receives the payload, validates the UUIDs, and triggers the `engine.Calculate()` logic.
 3. **Database Layer:** GORM connects directly to Supabase via port 5432 (bypassing connection poolers for stable migrations). Atomic transactions ensure no data corruption occurs during concurrent rating updates.
