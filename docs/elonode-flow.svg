@@ -1,0 +1,137 @@
+<svg width="900" height="740" viewBox="0 0 900 740" xmlns="http://www.w3.org/2000/svg" font-family="ui-monospace,SFMono-Regular,monospace">
+  <rect width="900" height="740" fill="#0D1117" rx="12"/>
+
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto">
+      <path d="M2 1L8 5L2 9" fill="none" stroke="#6E7681" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+  </defs>
+
+  <text x="450" y="30" text-anchor="middle" fill="#7C5CFC" font-size="14" font-weight="700" letter-spacing="3">ELONODE — SYSTEM ARCHITECTURE</text>
+
+  <rect x="60" y="50" width="200" height="52" rx="8" fill="#131B2E" stroke="#3D7BFF" stroke-width="1"/>
+  <text x="160" y="70" text-anchor="middle" fill="#3D7BFF" font-size="10" font-weight="600" letter-spacing="1.5">USER ENTRY</text>
+  <text x="160" y="88" text-anchor="middle" fill="#CDD9E5" font-size="11">Browser · elonode.online</text>
+
+  <rect x="350" y="50" width="200" height="52" rx="8" fill="#131B2E" stroke="#3FB950" stroke-width="1"/>
+  <text x="450" y="70" text-anchor="middle" fill="#3FB950" font-size="10" font-weight="600" letter-spacing="1.5">CLERK AUTH</text>
+  <text x="450" y="88" text-anchor="middle" fill="#CDD9E5" font-size="11">JWT · Webhooks · Admin roles</text>
+
+  <rect x="640" y="50" width="200" height="52" rx="8" fill="#131B2E" stroke="#E3B341" stroke-width="1"/>
+  <text x="740" y="70" text-anchor="middle" fill="#E3B341" font-size="10" font-weight="600" letter-spacing="1.5">DEPLOYMENT</text>
+  <text x="740" y="88" text-anchor="middle" fill="#CDD9E5" font-size="11">Vercel · Render (Go backend)</text>
+
+  <line x1="160" y1="102" x2="160" y2="128" stroke="#6E7681" stroke-width="1" marker-end="url(#a)"/>
+  <line x1="450" y1="102" x2="450" y2="128" stroke="#6E7681" stroke-width="1" marker-end="url(#a)"/>
+  <line x1="740" y1="102" x2="740" y2="128" stroke="#6E7681" stroke-width="1" marker-end="url(#a)"/>
+
+  <rect x="30" y="128" width="840" height="148" rx="10" fill="#0D1B30" stroke="#7C5CFC" stroke-width="1"/>
+  <text x="450" y="150" text-anchor="middle" fill="#7C5CFC" font-size="11" font-weight="700" letter-spacing="2">FRONTEND — NEXT.JS 14 · TYPESCRIPT · TAILWIND CSS</text>
+
+  <rect x="48" y="160" width="188" height="100" rx="7" fill="#121829" stroke="#7C5CFC" stroke-width="0.6"/>
+  <text x="142" y="178" text-anchor="middle" fill="#A78BFA" font-size="10" font-weight="600">Pages</text>
+  <text x="142" y="194" text-anchor="middle" fill="#768390" font-size="9">Home · Arena · Duel room</text>
+  <text x="142" y="208" text-anchor="middle" fill="#768390" font-size="9">Profile · Leaderboard</text>
+  <text x="142" y="222" text-anchor="middle" fill="#768390" font-size="9">Contests · History</text>
+  <text x="142" y="236" text-anchor="middle" fill="#768390" font-size="9">Docs · Admin panel</text>
+  <text x="142" y="250" text-anchor="middle" fill="#768390" font-size="9">UnicornStudio animations</text>
+
+  <rect x="252" y="160" width="188" height="100" rx="7" fill="#121829" stroke="#7C5CFC" stroke-width="0.6"/>
+  <text x="346" y="178" text-anchor="middle" fill="#A78BFA" font-size="10" font-weight="600">Duel room</text>
+  <text x="346" y="194" text-anchor="middle" fill="#768390" font-size="9">Monaco editor (8 langs)</text>
+  <text x="346" y="208" text-anchor="middle" fill="#768390" font-size="9">Leave warning · Forfeit modal</text>
+  <text x="346" y="222" text-anchor="middle" fill="#768390" font-size="9">3-2-1 countdown · Confetti</text>
+  <text x="346" y="236" text-anchor="middle" fill="#768390" font-size="9">Rejoin (10 min) · Timer</text>
+  <text x="346" y="250" text-anchor="middle" fill="#768390" font-size="9">Collapsible problem panel</text>
+
+  <rect x="456" y="160" width="188" height="100" rx="7" fill="#121829" stroke="#7C5CFC" stroke-width="0.6"/>
+  <text x="550" y="178" text-anchor="middle" fill="#A78BFA" font-size="10" font-weight="600">Real-time UI</text>
+  <text x="550" y="194" text-anchor="middle" fill="#768390" font-size="9">WebSocket hook + provider</text>
+  <text x="550" y="208" text-anchor="middle" fill="#768390" font-size="9">Online/offline badges</text>
+  <text x="550" y="222" text-anchor="middle" fill="#768390" font-size="9">Challenge notification toast</text>
+  <text x="550" y="236" text-anchor="middle" fill="#768390" font-size="9">Difficulty + mode selector</text>
+  <text x="550" y="250" text-anchor="middle" fill="#768390" font-size="9">Live nodes · Arena banner</text>
+
+  <rect x="660" y="160" width="188" height="100" rx="7" fill="#121829" stroke="#7C5CFC" stroke-width="0.6"/>
+  <text x="754" y="178" text-anchor="middle" fill="#A78BFA" font-size="10" font-weight="600">Profile / Dashboard</text>
+  <text x="754" y="194" text-anchor="middle" fill="#768390" font-size="9">Rating chart (Recharts)</text>
+  <text x="754" y="208" text-anchor="middle" fill="#768390" font-size="9">Activity heatmap</text>
+  <text x="754" y="222" text-anchor="middle" fill="#768390" font-size="9">Win/loss mastery ring</text>
+  <text x="754" y="236" text-anchor="middle" fill="#768390" font-size="9">Recent skirmishes log</text>
+  <text x="754" y="250" text-anchor="middle" fill="#768390" font-size="9">Badges · Tier display</text>
+
+  <line x1="450" y1="276" x2="450" y2="302" stroke="#6E7681" stroke-width="1" marker-end="url(#a)"/>
+
+  <rect x="30" y="302" width="840" height="148" rx="10" fill="#0D1B2A" stroke="#2DD4BF" stroke-width="1"/>
+  <text x="450" y="324" text-anchor="middle" fill="#2DD4BF" font-size="11" font-weight="700" letter-spacing="2">BACKEND — GO · GIN · GORILLA/WEBSOCKET</text>
+
+  <rect x="48" y="334" width="188" height="100" rx="7" fill="#0B1F1D" stroke="#2DD4BF" stroke-width="0.6"/>
+  <text x="142" y="352" text-anchor="middle" fill="#2DD4BF" font-size="10" font-weight="600">REST API (20+ routes)</text>
+  <text x="142" y="368" text-anchor="middle" fill="#768390" font-size="9">GET users · contests · stats</text>
+  <text x="142" y="382" text-anchor="middle" fill="#768390" font-size="9">GET problems/random · history</text>
+  <text x="142" y="396" text-anchor="middle" fill="#768390" font-size="9">POST contests · finalize · users</text>
+  <text x="142" y="410" text-anchor="middle" fill="#768390" font-size="9">DELETE contests (admin)</text>
+  <text x="142" y="424" text-anchor="middle" fill="#768390" font-size="9">GET users/:id/profile</text>
+
+  <rect x="252" y="334" width="188" height="100" rx="7" fill="#0B1F1D" stroke="#2DD4BF" stroke-width="0.6"/>
+  <text x="346" y="352" text-anchor="middle" fill="#2DD4BF" font-size="10" font-weight="600">WebSocket hub</text>
+  <text x="346" y="368" text-anchor="middle" fill="#768390" font-size="9">join · online_users</text>
+  <text x="346" y="382" text-anchor="middle" fill="#768390" font-size="9">challenge · challenge_response</text>
+  <text x="346" y="396" text-anchor="middle" fill="#768390" font-size="9">ready · ready_update · duel_start</text>
+  <text x="346" y="410" text-anchor="middle" fill="#768390" font-size="9">won · opponent_won</text>
+  <text x="346" y="424" text-anchor="middle" fill="#768390" font-size="9">leave · opponent_left</text>
+
+  <rect x="456" y="334" width="188" height="100" rx="7" fill="#0B1F1D" stroke="#2DD4BF" stroke-width="0.6"/>
+  <text x="550" y="352" text-anchor="middle" fill="#2DD4BF" font-size="10" font-weight="600">Rating engine</text>
+  <text x="550" y="368" text-anchor="middle" fill="#768390" font-size="9">Beaten = Total - Rank</text>
+  <text x="550" y="382" text-anchor="middle" fill="#768390" font-size="9">Percentile → Performance</text>
+  <text x="550" y="396" text-anchor="middle" fill="#768390" font-size="9">Change = (Perf - Old) / 2</text>
+  <text x="550" y="410" text-anchor="middle" fill="#768390" font-size="9">NewRating = Old + Change</text>
+  <text x="550" y="424" text-anchor="middle" fill="#768390" font-size="9">Tier auto-update · O(1)</text>
+
+  <rect x="660" y="334" width="188" height="100" rx="7" fill="#0B1F1D" stroke="#2DD4BF" stroke-width="0.6"/>
+  <text x="754" y="352" text-anchor="middle" fill="#2DD4BF" font-size="10" font-weight="600">Middleware / Auth</text>
+  <text x="754" y="368" text-anchor="middle" fill="#768390" font-size="9">CORS all origins</text>
+  <text x="754" y="382" text-anchor="middle" fill="#768390" font-size="9">Clerk JWT verify</text>
+  <text x="754" y="396" text-anchor="middle" fill="#768390" font-size="9">Admin role → public metadata</text>
+  <text x="754" y="410" text-anchor="middle" fill="#768390" font-size="9">Graceful shutdown</text>
+  <text x="754" y="424" text-anchor="middle" fill="#768390" font-size="9">DB connection pooling</text>
+
+  <line x1="142" y1="450" x2="142" y2="476" stroke="#6E7681" stroke-width="1" marker-end="url(#a)"/>
+  <line x1="346" y1="450" x2="346" y2="476" stroke="#6E7681" stroke-width="1" marker-end="url(#a)"/>
+  <line x1="654" y1="450" x2="654" y2="476" stroke="#6E7681" stroke-width="1" marker-end="url(#a)"/>
+
+  <rect x="30" y="476" width="260" height="116" rx="9" fill="#0D1B0F" stroke="#3FB950" stroke-width="1"/>
+  <text x="160" y="498" text-anchor="middle" fill="#3FB950" font-size="10" font-weight="700" letter-spacing="1.5">SUPABASE POSTGRESQL</text>
+  <text x="160" y="514" text-anchor="middle" fill="#768390" font-size="9">users · contests · rating_history</text>
+  <text x="160" y="528" text-anchor="middle" fill="#768390" font-size="9">leaderboard · badges · user_badges</text>
+  <text x="160" y="542" text-anchor="middle" fill="#768390" font-size="9">ELO stored · tier · max_rating</text>
+  <text x="160" y="556" text-anchor="middle" fill="#768390" font-size="9">contests_played · wins · losses</text>
+  <text x="160" y="572" text-anchor="middle" fill="#768390" font-size="9">image_url · global_rank</text>
+
+  <rect x="320" y="476" width="260" height="116" rx="9" fill="#1B1500" stroke="#E3B341" stroke-width="1"/>
+  <text x="450" y="498" text-anchor="middle" fill="#E3B341" font-size="10" font-weight="700" letter-spacing="1.5">LEETCODE GRAPHQL API</text>
+  <text x="450" y="514" text-anchor="middle" fill="#768390" font-size="9">slug · title · content · difficulty</text>
+  <text x="450" y="528" text-anchor="middle" fill="#768390" font-size="9">starter code · code snippets · tags</text>
+  <text x="450" y="542" text-anchor="middle" fill="#768390" font-size="9">metaData · examples · leetcodeUrl</text>
+  <text x="450" y="556" text-anchor="middle" fill="#768390" font-size="9">Easy=15m · Medium=25m · Hard=45m</text>
+  <text x="450" y="572" text-anchor="middle" fill="#768390" font-size="9">Contest-scoped problem caching</text>
+
+  <rect x="610" y="476" width="260" height="116" rx="9" fill="#0D1525" stroke="#3D7BFF" stroke-width="1"/>
+  <text x="740" y="498" text-anchor="middle" fill="#3D7BFF" font-size="10" font-weight="700" letter-spacing="1.5">JUDGE0 — CODE EXECUTION</text>
+  <text x="740" y="514" text-anchor="middle" fill="#768390" font-size="9">Python3 · JavaScript · TypeScript</text>
+  <text x="740" y="528" text-anchor="middle" fill="#768390" font-size="9">C++ · C · Java · Go · Rust</text>
+  <text x="740" y="542" text-anchor="middle" fill="#768390" font-size="9">Auto code wrapper (codeWrapper.ts)</text>
+  <text x="740" y="556" text-anchor="middle" fill="#768390" font-size="9">stdin / stdout · stderr check</text>
+  <text x="740" y="572" text-anchor="middle" fill="#768390" font-size="9">TreeNode · ListNode helpers</text>
+
+  <rect x="30" y="612" width="840" height="48" rx="8" fill="#131018" stroke="#7C5CFC" stroke-width="0.6"/>
+  <text x="60" y="630" fill="#768390" font-size="9" font-weight="600">RATING TIERS</text>
+  <text x="60" y="648" fill="#6E7681" font-size="9">Newbie &lt;1100</text>
+  <text x="175" y="648" fill="#3FB950" font-size="9">Apprentice 1100</text>
+  <text x="315" y="648" fill="#38BDF8" font-size="9">Specialist 1150</text>
+  <text x="450" y="648" fill="#818CF8" font-size="9">Expert 1200</text>
+  <text x="565" y="648" fill="#E3B341" font-size="9">Master 1400</text>
+  <text x="660" y="648" fill="#F85149" font-size="9">Grandmaster 1800+</text>
+  <text x="800" y="648" text-anchor="middle" fill="#7C5CFC" font-size="9">O(1) algo</text>
+</svg>
