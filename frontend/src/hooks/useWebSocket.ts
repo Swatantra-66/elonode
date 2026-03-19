@@ -50,7 +50,12 @@ export function useWebSocket(params: {
 }) {
   const { enabled, userId, userName, tier, imageUrl, handlers } = params;
   const wsRef = useRef<WebSocket | null>(null);
+  const handlersRef = useRef<WSHandlers>(handlers);
   const [connected, setConnected] = useState(false);
+
+  useEffect(() => {
+    handlersRef.current = handlers;
+  }, [handlers]);
 
   const send = useCallback((type: string, payload: object) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -81,25 +86,25 @@ export function useWebSocket(params: {
 
         switch (msg.type) {
           case "online_users":
-            handlers.onOnlineUsers?.(payload);
+            handlersRef.current.onOnlineUsers?.(payload);
             break;
           case "challenge_received":
-            handlers.onChallengeReceived?.(payload);
+            handlersRef.current.onChallengeReceived?.(payload);
             break;
           case "challenge_response":
-            handlers.onChallengeResponse?.(payload);
+            handlersRef.current.onChallengeResponse?.(payload);
             break;
           case "ready_update":
-            handlers.onReadyUpdate?.(payload);
+            handlersRef.current.onReadyUpdate?.(payload);
             break;
           case "duel_start":
-            handlers.onDuelStart?.(payload);
+            handlersRef.current.onDuelStart?.(payload);
             break;
           case "opponent_left":
-            handlers.onOpponentLeft?.(payload);
+            handlersRef.current.onOpponentLeft?.(payload);
             break;
           case "opponent_won":
-            handlers.onOpponentWon?.(payload);
+            handlersRef.current.onOpponentWon?.(payload);
             break;
         }
       } catch {}
@@ -108,7 +113,7 @@ export function useWebSocket(params: {
     return () => {
       ws.close();
     };
-  }, [enabled, userId, userName, tier, imageUrl, handlers]);
+  }, [enabled, userId, userName, tier, imageUrl]);
 
   return { send, connected };
 }
