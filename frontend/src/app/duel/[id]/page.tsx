@@ -77,6 +77,8 @@ interface BackendCaseResult {
 interface BackendJudgeResponse {
   status: string;
   message?: string;
+  error?: string;
+  details?: string;
   verdict?: string;
   results?: BackendCaseResult[];
 }
@@ -115,10 +117,15 @@ async function submitToBackendJudge(
     }
 
     if (!res.ok) {
+      const detailMessage =
+        data?.message ||
+        data?.error ||
+        data?.details ||
+        `Judge request failed (${res.status})`;
       return {
         ok: false,
         status: "Failed",
-        message: data?.message || "Judge request failed",
+        message: detailMessage,
         results: [] as BackendCaseResult[],
       };
     }

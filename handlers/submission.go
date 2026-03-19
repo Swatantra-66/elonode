@@ -7,6 +7,7 @@ import (
 	"io"
 	"math"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -91,7 +92,6 @@ type JudgeLimits struct {
 	MemoryLimitKB int
 }
 
-const Judge0BaseURL = "https://ce.judge0.com/submissions"
 const judge0PollInterval = 250 * time.Millisecond
 const judge0PollTimeout = 30 * time.Second
 const judge0MaxCreateRetries = 2
@@ -438,9 +438,17 @@ func createAndAwaitJudgeResult(client *http.Client, req Judge0Request) (Judge0Re
 	return pollJudgeSubmission(client, token)
 }
 
+func judge0BaseURL() string {
+	base := strings.TrimSpace(os.Getenv("JUDGE0_BASE_URL"))
+	if base == "" {
+		base = "https://ce.judge0.com/submissions"
+	}
+	return strings.TrimRight(base, "/")
+}
+
 func createJudgeSubmissionWithRetry(client *http.Client, req Judge0Request) (string, error) {
 	payloadBytes, _ := json.Marshal(req)
-	url := Judge0BaseURL + "?base64_encoded=false&wait=false"
+	url := judge0BaseURL() + "?base64_encoded=false&wait=false"
 
 	var lastErr error
 	for attempt := 0; attempt <= judge0MaxCreateRetries; attempt++ {
@@ -473,7 +481,7 @@ func createJudgeSubmissionWithRetry(client *http.Client, req Judge0Request) (str
 }
 
 func pollJudgeSubmission(client *http.Client, token string) (Judge0Response, error) {
-	url := fmt.Sprintf("%s/%s?base64_encoded=false", Judge0BaseURL, token)
+	url := fmt.Sprintf("%s/%s?base64_encoded=false", judge0BaseURL(), token)
 	deadline := time.Now().Add(judge0PollTimeout)
 
 	for time.Now().Before(deadline) {
