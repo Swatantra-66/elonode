@@ -69,6 +69,8 @@ type ProblemResponse struct {
 var (
 	contestProblemCache   = make(map[string]*ProblemResponse)
 	contestProblemCacheMu sync.RWMutex
+	contestConfigCache    = make(map[string]map[string]interface{})
+	contestConfigMu       sync.RWMutex
 )
 
 func timerForDifficulty(diff string) int {

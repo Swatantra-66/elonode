@@ -3,6 +3,7 @@ package handlers
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/rand"
 	"net/http"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/Swatantra-66/contest-rating-system/engine"
 	"github.com/Swatantra-66/contest-rating-system/models"
@@ -28,6 +30,21 @@ func New(db *gorm.DB) *Handler {
 
 func NewWithHub(db *gorm.DB, hub *WSHub) *Handler {
 	return &Handler{db: db, hub: hub}
+}
+
+func (h *Handler) EnsureRuntimeSchema() error {
+	sql := `
+CREATE TABLE IF NOT EXISTS contest_configs (
+    contest_id UUID PRIMARY KEY REFERENCES contests (id) ON DELETE CASCADE,
+    difficulty TEXT NOT NULL CHECK (difficulty IN ('Easy', 'Medium', 'Hard')),
+    mode TEXT NOT NULL CHECK (mode IN ('same', 'random')),
+    timer_secs INT NOT NULL CHECK (timer_secs > 0),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_contest_configs_contest_id ON contest_configs (contest_id);
+`
+	return h.db.Exec(sql).Error
 }
 
 type FinalizeParticipant struct {
@@ -95,6 +112,186 @@ func (h *Handler) GetRatingHistory(c *gin.Context) {
 type createUserReq struct {
 	Name     string `json:"name" binding:"required"`
 	ImageURL string `json:"image_url"`
+}
+
+type contestConfigRequest struct {
+	Difficulty string `json:"difficulty"`
+	Mode       string `json:"mode"`
+	TimerSecs  int    `json:"timer_secs"`
+}
+
+func normalizeDifficulty(input string) string {
+	switch strings.ToLower(strings.TrimSpace(input)) {
+	case "easy":
+		return "Easy"
+	case "medium":
+		return "Medium"
+	case "hard":
+		return "Hard"
+	default:
+		return ""
+	}
+}
+
+func normalizeMode(input string) string {
+	switch strings.ToLower(strings.TrimSpace(input)) {
+	case "same":
+		return "same"
+	case "random":
+		return "random"
+	default:
+		return ""
+	}
+}
+
+func toContestConfigPayload(cfg models.ContestConfig) map[string]interface{} {
+	return map[string]interface{}{
+		"contest_id": cfg.ContestID,
+		"difficulty": cfg.Difficulty,
+		"mode":       cfg.Mode,
+		"timer_secs": cfg.TimerSecs,
+	}
+}
+
+func (h *Handler) SetContestConfig(c *gin.Context) {
+	contestID := c.Param("id")
+	var contest models.Contest
+	if err := h.db.First(&contest, "id = ?", contestID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "contest not found"})
+		return
+	}
+
+	var req contestConfigRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+		return
+	}
+
+	difficulty := normalizeDifficulty(req.Difficulty)
+	if difficulty == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "difficulty must be Easy, Medium, or Hard"})
+		return
+	}
+	mode := normalizeMode(req.Mode)
+	if mode == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "mode must be same or random"})
+		return
+	}
+	timerSecs := timerForDifficulty(difficulty)
+
+	next := models.ContestConfig{
+		ContestID:  contestID,
+		Difficulty: difficulty,
+		Mode:       mode,
+		TimerSecs:  timerSecs,
+	}
+
+	insertRes := h.db.Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "contest_id"}},
+		DoNothing: true,
+	}).Create(&next)
+	if insertRes.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save contest config"})
+		return
+	}
+
+	var stored models.ContestConfig
+	if err := h.db.First(&stored, "contest_id = ?", contestID).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to read contest config"})
+		return
+	}
+	if stored.Difficulty != next.Difficulty || stored.Mode != next.Mode || stored.TimerSecs != next.TimerSecs {
+		c.JSON(http.StatusConflict, gin.H{
+			"error":   "contest config already locked",
+			"config":  toContestConfigPayload(stored),
+			"contest": contestID,
+		})
+		return
+	}
+
+	contestConfigMu.Lock()
+	contestConfigCache[contestID] = toContestConfigPayload(stored)
+	contestConfigMu.Unlock()
+
+	if insertRes.RowsAffected == 0 {
+		c.JSON(http.StatusOK, toContestConfigPayload(stored))
+		return
+	}
+	c.JSON(http.StatusCreated, toContestConfigPayload(stored))
+}
+
+func (h *Handler) GetContestConfig(c *gin.Context) {
+	contestID := c.Param("id")
+
+	contestConfigMu.RLock()
+	cached, ok := contestConfigCache[contestID]
+	contestConfigMu.RUnlock()
+	if ok {
+		c.JSON(http.StatusOK, cached)
+		return
+	}
+
+	var config models.ContestConfig
+	err := h.db.First(&config, "contest_id = ?", contestID).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "contest config not found"})
+		return
+	}
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch contest config"})
+		return
+	}
+
+	payload := toContestConfigPayload(config)
+	contestConfigMu.Lock()
+	contestConfigCache[contestID] = payload
+	contestConfigMu.Unlock()
+	c.JSON(http.StatusOK, payload)
+}
+
+func contestConfigFromPayload(payload map[string]interface{}) (difficulty, mode string, timerSecs int, ok bool) {
+	d, okD := payload["difficulty"].(string)
+	m, okM := payload["mode"].(string)
+	ts, okTS := payload["timer_secs"].(int)
+	if !okTS {
+		if f, okF := payload["timer_secs"].(float64); okF {
+			ts = int(f)
+			okTS = true
+		}
+	}
+	return d, m, ts, okD && okM && okTS
+}
+
+func (h *Handler) getContestConfigFromDB(contestID string) (models.ContestConfig, error) {
+	var cfg models.ContestConfig
+	err := h.db.First(&cfg, "contest_id = ?", contestID).Error
+	return cfg, err
+}
+
+func (h *Handler) getContestConfig(contestID string) (models.ContestConfig, bool) {
+	contestConfigMu.RLock()
+	cached, ok := contestConfigCache[contestID]
+	contestConfigMu.RUnlock()
+	if ok {
+		d, m, ts, parsed := contestConfigFromPayload(cached)
+		if parsed {
+			return models.ContestConfig{
+				ContestID:  contestID,
+				Difficulty: d,
+				Mode:       m,
+				TimerSecs:  ts,
+			}, true
+		}
+	}
+
+	cfg, err := h.getContestConfigFromDB(contestID)
+	if err != nil {
+		return models.ContestConfig{}, false
+	}
+	contestConfigMu.Lock()
+	contestConfigCache[contestID] = toContestConfigPayload(cfg)
+	contestConfigMu.Unlock()
+	return cfg, true
 }
 
 func (h *Handler) CreateUser(c *gin.Context) {
@@ -341,6 +538,13 @@ func (h *Handler) DeleteContest(c *gin.Context) {
 		return
 	}
 
+	contestProblemCacheMu.Lock()
+	delete(contestProblemCache, contestID)
+	contestProblemCacheMu.Unlock()
+	contestConfigMu.Lock()
+	delete(contestConfigCache, contestID)
+	contestConfigMu.Unlock()
+
 	FireWebhook(WebhookPayload{
 		Event:       "CONTEST_DELETED",
 		ContestName: contestName,
@@ -464,11 +668,21 @@ func fetchRandomProblem(difficulty string) (*ProblemResponse, error) {
 
 	q := detailResp.Data.Question
 
-	starterCode := "# Write your solution here\npass"
+	starterCode := "class Solution {\n    public int[] solve(int[] nums) {\n        return nums;\n    }\n}"
+	foundJava := false
 	for _, snippet := range q.CodeSnippets {
-		if snippet.LangSlug == "python3" {
+		if snippet.LangSlug == "java" {
 			starterCode = snippet.Code
+			foundJava = true
 			break
+		}
+	}
+	if !foundJava {
+		for _, snippet := range q.CodeSnippets {
+			if snippet.LangSlug == "python3" {
+				starterCode = snippet.Code
+				break
+			}
 		}
 	}
 
@@ -500,8 +714,17 @@ func fetchRandomProblem(difficulty string) (*ProblemResponse, error) {
 func (h *Handler) GetRandomProblem(c *gin.Context) {
 	difficulty := strings.ToLower(c.DefaultQuery("difficulty", "easy"))
 	contestID := c.Query("contest_id")
+	mode := strings.ToLower(c.DefaultQuery("mode", "same"))
 
 	if contestID != "" {
+		config, ok := h.getContestConfig(contestID)
+		if ok {
+			difficulty = strings.ToLower(config.Difficulty)
+			mode = strings.ToLower(config.Mode)
+		}
+	}
+
+	if contestID != "" && mode == "same" {
 		contestProblemCacheMu.RLock()
 		cached, exists := contestProblemCache[contestID]
 		contestProblemCacheMu.RUnlock()
@@ -517,7 +740,7 @@ func (h *Handler) GetRandomProblem(c *gin.Context) {
 		return
 	}
 
-	if contestID != "" {
+	if contestID != "" && mode == "same" {
 		contestProblemCacheMu.Lock()
 		contestProblemCache[contestID] = problem
 		contestProblemCacheMu.Unlock()
