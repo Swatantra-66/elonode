@@ -2,6 +2,21 @@
 
 import { useEffect, useState, useRef, useCallback, Suspense } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
+import Image from "next/image";
+import {
+  DEFAULT_SNIPPETS,
+  fetchJudge0Languages,
+  getFallbackJudge0LanguageId,
+  getLanguageExtension,
+  getLanguageLabel,
+  getMonacoLanguage,
+  isWrapperSupported,
+  resolveJudge0LanguageId,
+  toWrapperLanguage,
+  type Judge0Language,
+  DIFF_COLOR,
+  type Difficulty,
+} from "@/lib/languages";
 import { useUser } from "@clerk/nextjs";
 import { Orbitron } from "next/font/google";
 import { ArrowLeft, ChevronRight, Zap } from "lucide-react";
@@ -15,9 +30,10 @@ const orbitron = Orbitron({
   weight: ["400", "700", "900"],
 });
 
-const JUDGE0_URL =
-  process.env.NEXT_PUBLIC_JUDGE0_URL || "https://ce.judge0.com";
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
+const API_BASE = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/?$/, "/");
+const draftCodeKey = (duelId: string, lang: string) =>
+  `draft_code_${duelId}_${lang}`;
+const draftLangStorageKey = (duelId: string) => `draft_lang_${duelId}`;
 
 type Phase =
   | "loading"
@@ -28,7 +44,6 @@ type Phase =
   | "won"
   | "lost";
 type TestStatus = "pending" | "running" | "passed" | "failed";
-type Difficulty = "Easy" | "Medium" | "Hard";
 type ProblemMode = "same" | "random";
 
 interface Problem {
@@ -50,122 +65,77 @@ interface OpponentInfo {
   id: string;
 }
 
-const DIFF_COLOR: Record<Difficulty, string> = {
-  Easy: "#4ade80",
-  Medium: "#fbbf24",
-  Hard: "#f87171",
-};
-const LANGUAGE_IDS: Record<string, number> = {
-  python: 71,
-  javascript: 63,
-  cpp: 54,
-  c: 50,
-  java: 62,
-  go: 60,
-  rust: 73,
-  typescript: 74,
-};
 const fmt = (s: number) =>
   `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 
-const DEFAULT_SNIPPETS: Record<string, string> = {
-  python3: `class Solution:
-    def solve(self, nums: list[int]) -> int:
-        pass
-`,
-  javascript: `/**
- * @param {number[]} nums
- * @return {number}
- */
-var solve = function(nums) {
-    
-};
-`,
-  typescript: `function solve(nums: number[]): number {
-    
-};
-`,
-  cpp: `#include <bits/stdc++.h>
-using namespace std;
-
-class Solution {
-public:
-    int solve(vector<int>& nums) {
-        
-    }
-};
-`,
-  c: `#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
-int solve(int* nums, int numsSize) {
-    
+interface BackendCaseResult {
+  case_index: number;
+  passed: boolean;
+  hidden: boolean;
 }
 
-int main() {
-    return 0;
-}
-`,
-  java: `class Solution {
-    public int solve(int[] nums) {
-        
-    }
-}
-`,
-  golang: `package main
-
-import "fmt"
-
-func solve(nums []int) int {
-    
+interface BackendJudgeResponse {
+  status: string;
+  message?: string;
+  verdict?: string;
+  results?: BackendCaseResult[];
 }
 
-func main() {
-    fmt.Println(solve([]int{}))
+interface BackendJudgeResult {
+  ok: boolean;
+  status: string;
+  message: string;
+  verdict?: string;
+  results: BackendCaseResult[];
 }
-`,
-  rust: `impl Solution {
-    pub fn solve(nums: Vec<i32>) -> i32 {
-        
-    }
-}
-`,
-};
 
-const LC_LANG_MAP: Record<string, string> = {
-  python: "python3",
-  javascript: "javascript",
-  typescript: "typescript",
-  cpp: "cpp",
-  c: "c",
-  java: "java",
-  go: "golang",
-  rust: "rust",
-};
-
-async function runCode(sourceCode: string, language: string, stdin: string) {
+async function submitToBackendJudge(
+  sourceCode: string,
+  languageID: number,
+  problemSlug: string,
+): Promise<BackendJudgeResult> {
   try {
-    const res = await fetch(
-      `${JUDGE0_URL}/submissions?base64_encoded=false&wait=true`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          source_code: sourceCode,
-          language_id: LANGUAGE_IDS[language] || 71,
-          stdin,
-        }),
-      },
-    );
-    const data = await res.json();
+    const res = await fetch(`${API_BASE}submit-judge`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        code: sourceCode,
+        language_id: languageID,
+        problem_slug: problemSlug,
+        action: "submit",
+      }),
+    });
+    let data: BackendJudgeResponse = { status: "Failed" };
+    const contentType = res.headers.get("content-type") || "";
+    if (contentType.includes("application/json")) {
+      data = (await res.json()) as BackendJudgeResponse;
+    } else {
+      const text = await res.text();
+      data.message = text || "Judge request failed";
+    }
+
+    if (!res.ok) {
+      return {
+        ok: false,
+        status: "Failed",
+        message: data?.message || "Judge request failed",
+        results: [] as BackendCaseResult[],
+      };
+    }
     return {
-      stdout: (data.stdout || "").trim(),
-      stderr: data.stderr || data.compile_output || "",
-      status: data.status?.description || "Unknown",
+      ok: true,
+      status: data.status || "Failed",
+      message: data.message || "",
+      verdict: data.verdict || "",
+      results: Array.isArray(data.results) ? data.results : [],
     };
   } catch {
-    return { stdout: "", stderr: "Judge0 unreachable", status: "Error" };
+    return {
+      ok: false,
+      status: "Failed",
+      message: "Judge service unreachable",
+      results: [] as BackendCaseResult[],
+    };
   }
 }
 
@@ -212,9 +182,12 @@ function Avatar({
       }}
     >
       {imageUrl ? (
-        <img
+        <Image
           src={imageUrl}
           alt={name}
+          width={size}
+          height={size}
+          unoptimized
           style={{ width: "100%", height: "100%", objectFit: "cover" }}
         />
       ) : (
@@ -258,8 +231,14 @@ function DuelRoomInner() {
   const [problem, setProblem] = useState<Problem | null>(null);
   const [difficulty, setDifficulty] = useState<Difficulty>("Easy");
   const [problemMode, setProblemMode] = useState<ProblemMode>("same");
+  const [configLocked, setConfigLocked] = useState(false);
   const [code, setCode] = useState("");
-  const [language, setLanguage] = useState("python");
+  const [language, setLanguage] = useState("cpp");
+  const [availableLanguages, setAvailableLanguages] = useState<string[]>([
+    "cpp",
+    "python3",
+  ]);
+  const [judgeLanguages, setJudgeLanguages] = useState<Judge0Language[]>([]);
   const [timer, setTimer] = useState(900);
   const [countdown, setCountdown] = useState(3);
   const [tab, setTab] = useState<"problem" | "constraints">("problem");
@@ -283,19 +262,41 @@ function DuelRoomInner() {
   const [editorLocked, setEditorLocked] = useState(false);
   const [resultMsg, setResultMsg] = useState("");
   const [problemPanelOpen, setProblemPanelOpen] = useState(true);
+  const [hintText, setHintText] = useState("");
+  const [hintLoading, setHintLoading] = useState(false);
+  const [hintError, setHintError] = useState("");
+  const [hintRemaining, setHintRemaining] = useState<number | null>(null);
+  const [analysisText, setAnalysisText] = useState("");
+  const [analysisLoading, setAnalysisLoading] = useState(false);
+  const [analysisError, setAnalysisError] = useState("");
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const opponentRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const snippetsRef = useRef<Record<string, string>>({});
-  const languageRef = useRef<string>("python");
+  const languageRef = useRef<string>("cpp");
   const myNodeId =
     typeof window !== "undefined"
       ? localStorage.getItem("elonode_db_id") || ""
       : "";
 
-  const getStarterCode = useCallback((lang: string): string => {
-    const lcSlug = LC_LANG_MAP[lang] || "python3";
-    return snippetsRef.current[lcSlug] || DEFAULT_SNIPPETS[lcSlug] || "";
+  const getStarterCode = useCallback((langSlug: string): string => {
+    return snippetsRef.current[langSlug] || DEFAULT_SNIPPETS[langSlug] || "";
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    fetchJudge0Languages()
+      .then((langs) => {
+        if (!active) return;
+        setJudgeLanguages(langs);
+      })
+      .catch(() => {
+        if (!active) return;
+        setJudgeLanguages([]);
+      });
+    return () => {
+      active = false;
+    };
   }, []);
 
   const startCountdown = useCallback(() => {
@@ -354,6 +355,11 @@ function DuelRoomInner() {
         clearInterval(opponentRef.current!);
         setEditorLocked(true);
         setResultMsg("Opponent left — You win!");
+        availableLanguages.forEach((slug) =>
+          localStorage.removeItem(draftCodeKey(duelId, slug)),
+        );
+        localStorage.removeItem(draftLangStorageKey(duelId));
+        localStorage.removeItem(`draft_code_${duelId}`);
         setPhase("won");
         finalizeContest(duelId, myNodeId, payload.user_id, API_BASE);
       },
@@ -364,7 +370,14 @@ function DuelRoomInner() {
         setOpponentStatus("submitted");
         setEditorLocked(true);
         setResultMsg("Opponent solved it first.");
-        setTimeout(() => setPhase("lost"), 1500);
+        setTimeout(() => {
+          availableLanguages.forEach((slug) =>
+            localStorage.removeItem(draftCodeKey(duelId, slug)),
+          );
+          localStorage.removeItem(draftLangStorageKey(duelId));
+          localStorage.removeItem(`draft_code_${duelId}`);
+          setPhase("lost");
+        }, 1500);
       },
     },
   });
@@ -390,13 +403,18 @@ function DuelRoomInner() {
   ]);
 
   const fetchProblem = useCallback(
-    async (diff: Difficulty, contestId?: string) => {
+    async (diff: Difficulty, contestId?: string, mode: ProblemMode = "same") => {
       setFetchingProblem(true);
       setErrorMsg("");
+      setHintText("");
+      setHintError("");
+      setHintRemaining(null);
+      setAnalysisText("");
+      setAnalysisError("");
       try {
         const url = contestId
-          ? `${API_BASE}problems/random?difficulty=${diff.toLowerCase()}&contest_id=${contestId}`
-          : `${API_BASE}problems/random?difficulty=${diff.toLowerCase()}`;
+          ? `${API_BASE}problems/random?difficulty=${diff.toLowerCase()}&contest_id=${contestId}&mode=${mode}`
+          : `${API_BASE}problems/random?difficulty=${diff.toLowerCase()}&mode=${mode}`;
         const res = await fetch(url);
         if (!res.ok) throw new Error();
         const data = await res.json();
@@ -409,9 +427,17 @@ function DuelRoomInner() {
             },
           );
         }
-        if (!snippetMap["python3"] && data.starter_code)
+        if (!snippetMap["python3"] && data.starter_code) {
           snippetMap["python3"] = data.starter_code;
+        }
         snippetsRef.current = snippetMap;
+
+        const languageOptions = Object.keys(snippetMap).filter((slug) =>
+          isWrapperSupported(toWrapperLanguage(slug)),
+        );
+        if (languageOptions.length > 0) {
+          setAvailableLanguages(languageOptions);
+        }
 
         const p: Problem = {
           slug: data.slug,
@@ -426,7 +452,34 @@ function DuelRoomInner() {
           metaData: data.meta_data || "",
         };
         setProblem(p);
-        setCode(getStarterCode(languageRef.current));
+
+        const contestSavedLang = localStorage.getItem(
+          draftLangStorageKey(duelId),
+        );
+        const preferredLang = localStorage.getItem("elonode_preferred_lang");
+        const initialLang =
+          languageOptions.find((slug) => slug === contestSavedLang) ||
+          languageOptions.find((slug) => slug === "java") ||
+          languageOptions.find((slug) => slug === preferredLang) ||
+          languageOptions[0] ||
+          "java";
+        setLanguage(initialLang);
+        languageRef.current = initialLang;
+        localStorage.setItem(draftLangStorageKey(duelId), initialLang);
+
+        const savedCode = localStorage.getItem(draftCodeKey(duelId, initialLang));
+        const legacySavedCode = localStorage.getItem(`draft_code_${duelId}`);
+        if (savedCode) {
+          setCode(savedCode);
+        } else if (legacySavedCode) {
+          setCode(legacySavedCode);
+          localStorage.setItem(draftCodeKey(duelId, initialLang), legacySavedCode);
+        } else {
+          const starter = getStarterCode(initialLang);
+          setCode(starter);
+          localStorage.setItem(draftCodeKey(duelId, initialLang), starter);
+        }
+
         setTimer(p.timerSecs);
         const exLines = data.examples
           .split("\n")
@@ -438,7 +491,7 @@ function DuelRoomInner() {
         setFetchingProblem(false);
       }
     },
-    [getStarterCode],
+    [getStarterCode, duelId],
   );
 
   useEffect(() => {
@@ -448,9 +501,6 @@ function DuelRoomInner() {
       const urlDifficulty = (searchParams.get("difficulty") ||
         "Easy") as Difficulty;
       const urlMode = (searchParams.get("mode") || "same") as ProblemMode;
-
-      setDifficulty(urlDifficulty);
-      setProblemMode(urlMode);
 
       let opponentImageUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(opponentName)}&background=27272a&color=f87171&size=128&bold=true`;
       if (opponentId) {
@@ -468,10 +518,40 @@ function DuelRoomInner() {
         id: opponentId,
       });
 
+      let finalDifficulty: Difficulty = urlDifficulty;
+      let finalMode: ProblemMode = urlMode;
+      let lockedTimer: number | null = null;
+
+      try {
+        const cfgRes = await fetch(`${API_BASE}contests/${duelId}/config`);
+        if (cfgRes.ok) {
+          const cfg = await cfgRes.json();
+          setConfigLocked(true);
+          const cfgDifficulty = (cfg?.difficulty || "").toString();
+          const cfgMode = (cfg?.mode || "").toString();
+          if (["Easy", "Medium", "Hard"].includes(cfgDifficulty)) {
+            finalDifficulty = cfgDifficulty as Difficulty;
+          }
+          if (cfgMode === "same" || cfgMode === "random") {
+            finalMode = cfgMode as ProblemMode;
+          }
+          if (typeof cfg?.timer_secs === "number" && cfg.timer_secs > 0) {
+            lockedTimer = cfg.timer_secs;
+          }
+        }
+      } catch {}
+
+      setDifficulty(finalDifficulty);
+      setProblemMode(finalMode);
+
       await fetchProblem(
-        urlDifficulty,
-        urlMode === "same" ? duelId : undefined,
+        finalDifficulty,
+        finalMode === "same" ? duelId : undefined,
+        finalMode,
       );
+      if (lockedTimer) {
+        setTimer(lockedTimer);
+      }
 
       try {
         const uid = localStorage.getItem("elonode_db_id");
@@ -504,6 +584,11 @@ function DuelRoomInner() {
               setTimer((prev) => {
                 if (prev <= 1) {
                   clearInterval(timerRef.current!);
+                  localStorage.removeItem(
+                    draftCodeKey(duelId, languageRef.current),
+                  );
+                  localStorage.removeItem(draftLangStorageKey(duelId));
+                  localStorage.removeItem(`draft_code_${duelId}`);
                   setPhase("lost");
                   return 0;
                 }
@@ -534,16 +619,16 @@ function DuelRoomInner() {
           difficulty,
           mode: problemMode,
           url,
-          phase,
-          timerSecs: timer,
-          timestamp: Date.now(),
-        }),
-      );
+      phase,
+      timerSecs: timer,
+      timestamp: Date.now(),
+    }),
+  );
     }
     if (phase === "won" || phase === "lost") {
       localStorage.removeItem("elonode_active_contest");
     }
-  }, [phase, duelId, opponent, difficulty, problemMode]);
+  }, [phase, duelId, opponent, difficulty, problemMode, timer]);
 
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -575,8 +660,84 @@ function DuelRoomInner() {
       });
     }
     await finalizeContest(duelId, opponent.id, myNodeId, API_BASE);
+    availableLanguages.forEach((slug) =>
+      localStorage.removeItem(draftCodeKey(duelId, slug)),
+    );
+    localStorage.removeItem(draftLangStorageKey(duelId));
+    localStorage.removeItem(`draft_code_${duelId}`);
     router.push("/arena");
-  }, [duelId, myNodeId, opponent.id, wsConnected, wsSend, router]);
+  }, [duelId, myNodeId, opponent.id, wsConnected, wsSend, router, availableLanguages]);
+
+  const requestHint = useCallback(async () => {
+    if (!problem || hintLoading) return;
+    setHintError("");
+    setHintLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}hints`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          problem_slug: problem.slug,
+          problem_title: problem.title,
+          content: problem.content,
+          examples: problem.examples,
+          meta_data: problem.metaData,
+          language,
+          code,
+          contest_id: duelId,
+          user_id: myNodeId,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setHintError(data?.error || "Hint request failed");
+        if (typeof data?.hints_remaining === "number") {
+          setHintRemaining(data.hints_remaining);
+        }
+        return;
+      }
+      setHintText(data.hint || "");
+      if (typeof data?.hints_remaining === "number") {
+        setHintRemaining(data.hints_remaining);
+      }
+    } catch {
+      setHintError("Hint service unreachable");
+    } finally {
+      setHintLoading(false);
+    }
+  }, [problem, hintLoading, language, code, duelId, myNodeId]);
+
+  const requestAnalysis = useCallback(async () => {
+    if (!problem || analysisLoading) return;
+    setAnalysisError("");
+    setAnalysisLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}analysis`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          problem_slug: problem.slug,
+          problem_title: problem.title,
+          content: problem.content,
+          examples: problem.examples,
+          meta_data: problem.metaData,
+          language,
+          code,
+          result: phase,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setAnalysisError(data?.error || "Analysis request failed");
+        return;
+      }
+      setAnalysisText(data.analysis || "");
+    } catch {
+      setAnalysisError("Analysis service unreachable");
+    } finally {
+      setAnalysisLoading(false);
+    }
+  }, [problem, analysisLoading, language, code, phase]);
 
   const submitSolution = useCallback(async () => {
     if (phase !== "dueling" || !problem) return;
@@ -586,68 +747,69 @@ function DuelRoomInner() {
     setMyProgress(100);
     setErrorMsg("");
 
-    const exampleInputs = problem.examples
-      .split("\n")
-      .filter((l) => l.trim())
-      .slice(0, 3);
-
-    if (exampleInputs.length === 0) {
-      const result = await runCode(
-        wrapCode(code, language, problem.metaData, problem.examples),
-        language,
-        "",
+    const wrappedCode = wrapCode(
+      code,
+      toWrapperLanguage(language),
+      problem.metaData,
+      problem.examples,
+    );
+    const resolvedLanguageID =
+      resolveJudge0LanguageId(language, judgeLanguages) ??
+      getFallbackJudge0LanguageId(language);
+    if (!resolvedLanguageID) {
+      setErrorMsg(
+        `Selected language (${getLanguageLabel(language)}) is not supported by judge right now.`,
       );
-      const passed = result.stderr === "" && result.status === "Accepted";
-      setTestResults([passed ? "passed" : "failed"]);
-      if (passed) {
-        setEditorLocked(true);
-        wsSend("won", { contest_id: duelId, to_id: opponent.id });
-        await finalizeContest(duelId, myNodeId, opponent.id, API_BASE);
-        const uid = localStorage.getItem("elonode_db_id");
-        if (uid) {
-          try {
-            const res = await fetch(`${API_BASE}users/${uid}`);
-            if (res.ok) {
-              const u = await res.json();
-              setRatingChange(u.current_rating - oldRating);
-            }
-          } catch {}
-        }
-        setPhase("won");
-      } else {
-        setPhase("lost");
-      }
-      return;
-    }
-
-    const results: TestStatus[] = Array(exampleInputs.length).fill("pending");
-    setTestResults([...results]);
-    let allPassed = true;
-
-    for (let i = 0; i < exampleInputs.length; i++) {
-      results[i] = "running";
-      setTestResults([...results]);
-      const { stdout, stderr, status } = await runCode(
-        wrapCode(code, language, problem.metaData, problem.examples),
-        language,
-        exampleInputs[i],
-      );
-      const passed =
-        stderr === "" &&
-        (status === "Accepted" || status === "Finished" || stdout !== "");
-      results[i] = passed ? "passed" : "failed";
-      if (!passed) allPassed = false;
-      setTestResults([...results]);
-    }
-
-    if (!allPassed) {
-      setErrorMsg("Some test cases failed. Fix your solution.");
       setPhase("dueling");
       timerRef.current = setInterval(
         () =>
           setTimer((t) => {
             if (t <= 1) {
               clearInterval(timerRef.current!);
+              availableLanguages.forEach((slug) =>
+                localStorage.removeItem(draftCodeKey(duelId, slug)),
+              );
+              localStorage.removeItem(draftLangStorageKey(duelId));
+              localStorage.removeItem(`draft_code_${duelId}`);
+              setPhase("lost");
+              return 0;
+            }
+            return t - 1;
+          }),
+        1000,
+      );
+      return;
+    }
+    const judgeResult = await submitToBackendJudge(
+      wrappedCode,
+      resolvedLanguageID,
+      problem.slug,
+    );
+
+    const publicResults = judgeResult.results.filter((r) => !r.hidden);
+    if (publicResults.length > 0) {
+      setTestResults(
+        publicResults.map((r) => (r.passed ? "passed" : "failed")),
+      );
+    } else {
+      setTestResults([judgeResult.status === "Accepted" ? "passed" : "failed"]);
+    }
+
+    if (!judgeResult.ok || judgeResult.status !== "Accepted") {
+      setErrorMsg(
+        judgeResult.message || judgeResult.verdict || "Submission failed.",
+      );
+      setPhase("dueling");
+      timerRef.current = setInterval(
+        () =>
+          setTimer((t) => {
+            if (t <= 1) {
+              clearInterval(timerRef.current!);
+              availableLanguages.forEach((slug) =>
+                localStorage.removeItem(draftCodeKey(duelId, slug)),
+              );
+              localStorage.removeItem(draftLangStorageKey(duelId));
+              localStorage.removeItem(`draft_code_${duelId}`);
               setPhase("lost");
               return 0;
             }
@@ -675,17 +837,23 @@ function DuelRoomInner() {
       setRatingChange(72);
     }
 
+    availableLanguages.forEach((slug) =>
+      localStorage.removeItem(draftCodeKey(duelId, slug)),
+    );
+    localStorage.removeItem(draftLangStorageKey(duelId));
+    localStorage.removeItem(`draft_code_${duelId}`);
     setPhase("won");
   }, [
     phase,
     problem,
     code,
     language,
-    opponentStatus,
     oldRating,
     duelId,
     myNodeId,
     opponent.id,
+    judgeLanguages,
+    availableLanguages,
     wsSend,
   ]);
 
@@ -858,14 +1026,17 @@ function DuelRoomInner() {
                 {(["same", "random"] as ProblemMode[]).map((m) => (
                   <button
                     key={m}
+                    disabled={configLocked}
                     onClick={() => {
+                      if (configLocked) return;
                       setProblemMode(m);
                       fetchProblem(
                         difficulty,
                         m === "same" ? duelId : undefined,
+                        m,
                       );
                     }}
-                    className="flex-1 py-2.5 rounded-lg font-mono text-[10px] font-bold uppercase tracking-widest cursor-pointer border transition-all"
+                    className="flex-1 py-2.5 rounded-lg font-mono text-[10px] font-bold uppercase tracking-widest cursor-pointer border transition-all disabled:opacity-40"
                     style={{
                       background:
                         problemMode === m
@@ -891,13 +1062,15 @@ function DuelRoomInner() {
                   <button
                     key={d}
                     onClick={async () => {
+                      if (configLocked) return;
                       setDifficulty(d);
                       await fetchProblem(
                         d,
                         problemMode === "same" ? duelId : undefined,
+                        problemMode,
                       );
                     }}
-                    disabled={fetchingProblem}
+                    disabled={fetchingProblem || configLocked}
                     className="flex-1 py-2.5 rounded-lg font-mono text-[10px] font-bold uppercase tracking-widest cursor-pointer border transition-all disabled:opacity-40"
                     style={{
                       background:
@@ -1120,6 +1293,31 @@ function DuelRoomInner() {
           </div>
           <div className="flex gap-3 justify-center">
             <button
+              onClick={requestAnalysis}
+              disabled={analysisLoading || !problem}
+              className="px-7 py-3 rounded-xl font-mono text-[10px] font-bold uppercase tracking-widest cursor-pointer border text-amber-300 disabled:opacity-60"
+              style={{
+                background: "rgba(251,191,36,0.08)",
+                borderColor: "rgba(251,191,36,0.35)",
+              }}
+            >
+              {analysisLoading ? "Analyzing..." : "Problem Analysis"}
+            </button>
+            {problem?.leetcodeUrl && (
+              <a
+                href={problem.leetcodeUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="px-7 py-3 rounded-xl font-mono text-[10px] font-bold uppercase tracking-widest cursor-pointer border text-indigo-300"
+                style={{
+                  background: "rgba(99,102,241,0.09)",
+                  borderColor: "rgba(99,102,241,0.35)",
+                }}
+              >
+                View on LeetCode
+              </a>
+            )}
+            <button
               onClick={() => router.push("/arena")}
               className="px-7 py-3 rounded-xl font-mono text-[10px] font-bold uppercase tracking-widest cursor-pointer border-0 text-white"
               style={{
@@ -1140,6 +1338,21 @@ function DuelRoomInner() {
               ← Hub
             </button>
           </div>
+
+          {(analysisText || analysisError) && (
+            <div className="mt-6 text-left rounded-xl border border-amber-500/25 bg-amber-500/5 p-4 max-h-[42vh] overflow-auto">
+              <p className="text-[9px] uppercase tracking-widest text-amber-400 mb-2 font-mono">
+                Post-Contest Analysis
+              </p>
+              {analysisError ? (
+                <p className="text-[12px] text-rose-300">{analysisError}</p>
+              ) : (
+                <p className="text-[12px] text-zinc-200 whitespace-pre-line leading-relaxed">
+                  {analysisText}
+                </p>
+              )}
+            </div>
+          )}
         </div>
       </div>
     );
@@ -1179,7 +1392,7 @@ function DuelRoomInner() {
               the sidebar.
             </p>
             <p className="text-zinc-600 text-[10px] leading-relaxed mb-6">
-              Your opponent's contest will continue. Come back before time runs
+              Your opponent&apos;s contest will continue. Come back before time runs
               out!
             </p>
             <div className="flex gap-3">
@@ -1363,16 +1576,22 @@ function DuelRoomInner() {
                 </button>
               ))}
               <div className="ml-auto flex items-center gap-3 self-center">
-                {problem && (
-                  <a
-                    href={problem.leetcodeUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-center gap-1 text-[9px] text-zinc-700 hover:text-indigo-400 transition-colors tracking-widest uppercase"
-                  >
-                    LC ↗
-                  </a>
-                )}
+                <button
+                  onClick={requestHint}
+                  disabled={hintLoading || hintRemaining === 0}
+                  className="text-[9px] px-2 py-1 rounded border cursor-pointer transition-colors"
+                  style={{
+                    borderColor: "rgba(251,191,36,0.35)",
+                    color: "#fbbf24",
+                    background: "rgba(251,191,36,0.08)",
+                  }}
+                >
+                  {hintLoading
+                    ? "Hint..."
+                    : hintRemaining === 0
+                      ? "Hint Limit Reached"
+                      : "Get Hint"}
+                </button>
                 <button
                   onClick={() => setProblemPanelOpen(false)}
                   className="text-zinc-700 hover:text-zinc-400 transition-colors text-[10px] font-mono tracking-widest cursor-pointer border-0 bg-transparent px-1"
@@ -1476,6 +1695,25 @@ function DuelRoomInner() {
                     ))}
                 </div>
               )}
+              {(hintText || hintError) && (
+                <div className="mt-4 rounded-lg border border-amber-500/25 bg-amber-500/5 p-3">
+                  <p className="text-[9px] uppercase tracking-widest text-amber-400 mb-2 font-mono">
+                    Hint
+                  </p>
+                  {hintRemaining !== null && (
+                    <p className="text-[10px] text-amber-300 mb-2">
+                      Hints remaining: {hintRemaining}
+                    </p>
+                  )}
+                  {hintError ? (
+                    <p className="text-[11px] text-rose-300">{hintError}</p>
+                  ) : (
+                    <p className="text-[12px] text-zinc-200 whitespace-pre-line">
+                      {hintText}
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -1515,22 +1753,7 @@ function DuelRoomInner() {
                 ))}
               </div>
               <span className="text-[9px] text-zinc-600 tracking-widest ml-2">
-                solution.
-                {language === "python"
-                  ? "py"
-                  : language === "javascript"
-                    ? "js"
-                    : language === "typescript"
-                      ? "ts"
-                      : language === "cpp"
-                        ? "cpp"
-                        : language === "c"
-                          ? "c"
-                          : language === "java"
-                            ? "java"
-                            : language === "go"
-                              ? "go"
-                              : "rs"}
+                solution.{getLanguageExtension(language)}
               </span>
             </div>
             <div className="flex items-center gap-3">
@@ -1543,21 +1766,29 @@ function DuelRoomInner() {
                 value={language}
                 onChange={(e) => {
                   const lang = e.target.value;
+                  localStorage.setItem(
+                    draftCodeKey(duelId, languageRef.current),
+                    code,
+                  );
                   setLanguage(lang);
                   languageRef.current = lang;
-                  setCode(getStarterCode(lang));
+                  localStorage.setItem(draftLangStorageKey(duelId), lang);
+                  localStorage.setItem("elonode_preferred_lang", lang);
+                  const savedForLang = localStorage.getItem(
+                    draftCodeKey(duelId, lang),
+                  );
+                  const nextCode = savedForLang || getStarterCode(lang);
+                  setCode(nextCode);
+                  localStorage.setItem(draftCodeKey(duelId, lang), nextCode);
                 }}
                 className="bg-zinc-900 border border-zinc-800 text-zinc-400 text-[9px] tracking-widest rounded px-2 py-1 cursor-pointer"
                 style={{ fontFamily: "ui-monospace, monospace" }}
               >
-                <option value="python">Python 3</option>
-                <option value="javascript">JavaScript</option>
-                <option value="typescript">TypeScript</option>
-                <option value="cpp">C++</option>
-                <option value="c">C</option>
-                <option value="java">Java</option>
-                <option value="go">Go</option>
-                <option value="rust">Rust</option>
+                {availableLanguages.map((slug) => (
+                  <option key={slug} value={slug}>
+                    {getLanguageLabel(slug)}
+                  </option>
+                ))}
               </select>
             </div>
           </div>
@@ -1583,31 +1814,17 @@ function DuelRoomInner() {
             )}
             <Editor
               height="100%"
-              language={
-                language === "cpp"
-                  ? "cpp"
-                  : language === "c"
-                    ? "c"
-                    : language === "python"
-                      ? "python"
-                      : language === "java"
-                        ? "java"
-                        : language === "go"
-                          ? "go"
-                          : language === "rust"
-                            ? "rust"
-                            : language === "typescript"
-                              ? "typescript"
-                              : "javascript"
-              }
+              language={getMonacoLanguage(language)}
               value={code}
               onChange={(val) => {
                 if (editorLocked) return;
-                setCode(val || "");
+                const newCode = val || "";
+                setCode(newCode);
+                localStorage.setItem(draftCodeKey(duelId, language), newCode);
                 setMyProgress(
                   Math.min(
                     90,
-                    ((val || "").length /
+                    (newCode.length /
                       ((problem?.starterCode.length || 100) * 2)) *
                       100,
                   ),
@@ -1768,3 +1985,4 @@ export default function DuelRoom() {
     </Suspense>
   );
 }
+
