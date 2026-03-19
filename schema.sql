@@ -33,6 +33,7 @@ CREATE TABLE contest_configs (
     difficulty TEXT NOT NULL CHECK (difficulty IN ('Easy', 'Medium', 'Hard')),
     mode TEXT NOT NULL CHECK (mode IN ('same', 'random')),
     timer_secs INT NOT NULL CHECK (timer_secs > 0),
+    problem_slug TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

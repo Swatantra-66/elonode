@@ -39,9 +39,11 @@ CREATE TABLE IF NOT EXISTS contest_configs (
     difficulty TEXT NOT NULL CHECK (difficulty IN ('Easy', 'Medium', 'Hard')),
     mode TEXT NOT NULL CHECK (mode IN ('same', 'random')),
     timer_secs INT NOT NULL CHECK (timer_secs > 0),
+    problem_slug TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+ALTER TABLE contest_configs ADD COLUMN IF NOT EXISTS problem_slug TEXT;
 CREATE INDEX IF NOT EXISTS idx_contest_configs_contest_id ON contest_configs (contest_id);
 `
 	return h.db.Exec(sql).Error
@@ -150,6 +152,7 @@ func toContestConfigPayload(cfg models.ContestConfig) map[string]interface{} {
 		"difficulty": cfg.Difficulty,
 		"mode":       cfg.Mode,
 		"timer_secs": cfg.TimerSecs,
+		"problem_slug": cfg.ProblemSlug,
 	}
 }
 
@@ -249,17 +252,18 @@ func (h *Handler) GetContestConfig(c *gin.Context) {
 	c.JSON(http.StatusOK, payload)
 }
 
-func contestConfigFromPayload(payload map[string]interface{}) (difficulty, mode string, timerSecs int, ok bool) {
+func contestConfigFromPayload(payload map[string]interface{}) (difficulty, mode string, timerSecs int, problemSlug string, ok bool) {
 	d, okD := payload["difficulty"].(string)
 	m, okM := payload["mode"].(string)
 	ts, okTS := payload["timer_secs"].(int)
+	ps, _ := payload["problem_slug"].(string)
 	if !okTS {
 		if f, okF := payload["timer_secs"].(float64); okF {
 			ts = int(f)
 			okTS = true
 		}
 	}
-	return d, m, ts, okD && okM && okTS
+	return d, m, ts, ps, okD && okM && okTS
 }
 
 func (h *Handler) getContestConfigFromDB(contestID string) (models.ContestConfig, error) {
@@ -273,13 +277,14 @@ func (h *Handler) getContestConfig(contestID string) (models.ContestConfig, bool
 	cached, ok := contestConfigCache[contestID]
 	contestConfigMu.RUnlock()
 	if ok {
-		d, m, ts, parsed := contestConfigFromPayload(cached)
+		d, m, ts, ps, parsed := contestConfigFromPayload(cached)
 		if parsed {
 			return models.ContestConfig{
 				ContestID:  contestID,
 				Difficulty: d,
 				Mode:       m,
 				TimerSecs:  ts,
+				ProblemSlug: ps,
 			}, true
 		}
 	}
@@ -292,6 +297,28 @@ func (h *Handler) getContestConfig(contestID string) (models.ContestConfig, bool
 	contestConfigCache[contestID] = toContestConfigPayload(cfg)
 	contestConfigMu.Unlock()
 	return cfg, true
+}
+
+func (h *Handler) lockContestProblemSlug(contestID, pickedSlug string) (string, error) {
+	pickedSlug = strings.TrimSpace(pickedSlug)
+	if pickedSlug == "" {
+		return "", fmt.Errorf("empty problem slug")
+	}
+
+	if err := h.db.Model(&models.ContestConfig{}).
+		Where("contest_id = ? AND (problem_slug IS NULL OR problem_slug = '')", contestID).
+		Update("problem_slug", pickedSlug).Error; err != nil {
+		return "", err
+	}
+
+	cfg, err := h.getContestConfigFromDB(contestID)
+	if err != nil {
+		return "", err
+	}
+	contestConfigMu.Lock()
+	contestConfigCache[contestID] = toContestConfigPayload(cfg)
+	contestConfigMu.Unlock()
+	return strings.TrimSpace(cfg.ProblemSlug), nil
 }
 
 func (h *Handler) CreateUser(c *gin.Context) {
@@ -632,6 +659,10 @@ func fetchRandomProblem(difficulty string) (*ProblemResponse, error) {
 	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
 	picked := questions[rng.Intn(len(questions))]
 
+	return fetchProblemBySlug(picked.TitleSlug)
+}
+
+func fetchProblemBySlug(titleSlug string) (*ProblemResponse, error) {
 	detailPayload := lcGraphQLRequest{
 		Query: `
 		query problemDetail($titleSlug: String!) {
@@ -652,7 +683,7 @@ func fetchRandomProblem(difficulty string) (*ProblemResponse, error) {
 			}
 		}`,
 		Variables: map[string]interface{}{
-			"titleSlug": picked.TitleSlug,
+			"titleSlug": titleSlug,
 		},
 	}
 
@@ -715,16 +746,31 @@ func (h *Handler) GetRandomProblem(c *gin.Context) {
 	difficulty := strings.ToLower(c.DefaultQuery("difficulty", "easy"))
 	contestID := c.Query("contest_id")
 	mode := strings.ToLower(c.DefaultQuery("mode", "same"))
+	var cfg models.ContestConfig
+	hasCfg := false
 
 	if contestID != "" {
 		config, ok := h.getContestConfig(contestID)
 		if ok {
+			cfg = config
+			hasCfg = true
 			difficulty = strings.ToLower(config.Difficulty)
 			mode = strings.ToLower(config.Mode)
 		}
 	}
 
 	if contestID != "" && mode == "same" {
+		if hasCfg && strings.TrimSpace(cfg.ProblemSlug) != "" {
+			problem, err := fetchProblemBySlug(cfg.ProblemSlug)
+			if err == nil {
+				if cfg.TimerSecs > 0 {
+					problem.TimerSecs = cfg.TimerSecs
+				}
+				c.JSON(http.StatusOK, problem)
+				return
+			}
+		}
+
 		contestProblemCacheMu.RLock()
 		cached, exists := contestProblemCache[contestID]
 		contestProblemCacheMu.RUnlock()
@@ -741,6 +787,19 @@ func (h *Handler) GetRandomProblem(c *gin.Context) {
 	}
 
 	if contestID != "" && mode == "same" {
+		if hasCfg {
+			lockedSlug, err := h.lockContestProblemSlug(contestID, problem.Slug)
+			if err == nil && lockedSlug != "" && lockedSlug != problem.Slug {
+				lockedProblem, lockErr := fetchProblemBySlug(lockedSlug)
+				if lockErr == nil {
+					problem = lockedProblem
+				}
+			}
+			if cfg.TimerSecs > 0 {
+				problem.TimerSecs = cfg.TimerSecs
+			}
+		}
+
 		contestProblemCacheMu.Lock()
 		contestProblemCache[contestID] = problem
 		contestProblemCacheMu.Unlock()

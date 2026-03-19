@@ -75,6 +75,7 @@ type ContestConfig struct {
 	Difficulty string    `gorm:"type:text;not null" json:"difficulty"`
 	Mode       string    `gorm:"type:text;not null" json:"mode"`
 	TimerSecs  int       `gorm:"not null" json:"timer_secs"`
+	ProblemSlug string   `gorm:"type:text" json:"problem_slug,omitempty"`
 	CreatedAt  time.Time `json:"created_at"`
 	UpdatedAt  time.Time `json:"updated_at"`
 }
