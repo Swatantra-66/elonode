@@ -29,13 +29,6 @@ export default function Sidebar() {
   });
 
   const [isOnline, setIsOnline] = useState(true);
-  const [nodeId, setNodeId] = useState<string | null>(null);
-
-  useEffect(() => {
-    const storedId = localStorage.getItem("elonode_db_id");
-    if (storedId) setNodeId(storedId);
-  }, []);
-
   useEffect(() => {
     const fetchSystemData = async () => {
       try {
