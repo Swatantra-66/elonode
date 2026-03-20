@@ -51,6 +51,44 @@ CREATE TABLE test_cases (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE problems (
+    slug TEXT PRIMARY KEY,
+    title TEXT,
+    difficulty TEXT CHECK (difficulty IN ('Easy', 'Medium', 'Hard')),
+    source TEXT NOT NULL DEFAULT 'leetcode',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE test_cases
+    ADD CONSTRAINT fk_test_cases_problem_slug
+    FOREIGN KEY (problem_slug)
+    REFERENCES problems (slug)
+    ON UPDATE CASCADE
+    ON DELETE RESTRICT;
+
+CREATE OR REPLACE FUNCTION ensure_problem_for_test_case()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.problem_slug := TRIM(NEW.problem_slug);
+    IF NEW.problem_slug IS NULL OR NEW.problem_slug = '' THEN
+        RAISE EXCEPTION 'problem_slug cannot be empty';
+    END IF;
+
+    INSERT INTO problems (slug, source)
+    VALUES (NEW.problem_slug, 'leetcode')
+    ON CONFLICT (slug) DO NOTHING;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_test_cases_ensure_problem
+BEFORE INSERT OR UPDATE OF problem_slug
+ON test_cases
+FOR EACH ROW
+EXECUTE FUNCTION ensure_problem_for_test_case();
+
 CREATE TABLE team_contests (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid (),
     name TEXT NOT NULL,
@@ -120,6 +158,7 @@ CREATE INDEX idx_rating_histories_user_id ON rating_histories (user_id);
 CREATE INDEX idx_rating_histories_contest_id ON rating_histories (contest_id);
 
 CREATE INDEX idx_test_cases_problem_slug ON test_cases (problem_slug);
+CREATE INDEX idx_problems_difficulty ON problems (difficulty);
 CREATE INDEX idx_contest_configs_contest_id ON contest_configs (contest_id);
 CREATE INDEX idx_team_contests_created_at ON team_contests (created_at DESC);
 CREATE INDEX idx_team_contest_teams_contest_id ON team_contest_teams (contest_id);
