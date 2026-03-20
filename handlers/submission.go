@@ -27,17 +27,18 @@ type TestCase struct {
 }
 
 type SubmitRequest struct {
-	Code        string `json:"code" binding:"required"`
-	LanguageID  int    `json:"language_id" binding:"required"`
-	ProblemSlug string `json:"problem_slug" binding:"required"`
-	Action      string `json:"action" binding:"required"`
+	Code          string `json:"code" binding:"required"`
+	LanguageID    int    `json:"language_id" binding:"required"`
+	ProblemSlug   string `json:"problem_slug" binding:"required"`
+	Action        string `json:"action" binding:"required"`
+	FallbackInput string `json:"fallback_input"` // Added for Dynamic Live Execution
 }
 
 type Judge0Request struct {
 	SourceCode     string `json:"source_code"`
 	LanguageID     int    `json:"language_id"`
 	Stdin          string `json:"stdin"`
-	ExpectedOutput string `json:"expected_output"`
+	ExpectedOutput string `json:"expected_output,omitempty"`
 	CPUTimeLimit   int    `json:"cpu_time_limit,omitempty"`
 	WallTimeLimit  int    `json:"wall_time_limit,omitempty"`
 	MemoryLimitKB  int    `json:"memory_limit,omitempty"`
@@ -123,12 +124,9 @@ func SubmitCodeHandler(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
+		// Fallback to Dynamic Execution if no test cases in DB
 		if len(testCases) == 0 {
-			c.JSON(http.StatusNotFound, gin.H{
-				"error":        "No test cases found in database for this problem",
-				"problem_slug": strings.TrimSpace(req.ProblemSlug),
-				"action":       action,
-			})
+			runWithoutDBCases(c, req, action)
 			return
 		}
 
@@ -151,17 +149,23 @@ func SubmitCodeHandler(db *gorm.DB) gin.HandlerFunc {
 				MemoryLimitKB:  limits.MemoryLimitKB,
 			}
 
-			judgeResp, err := createAndAwaitJudgeResult(httpClient, judgeReq)
+			payloadBytes, _ := json.Marshal(judgeReq)
+
+			// Use dynamic URL from env and append required query params for synchronous wait
+			syncURL := judge0BaseURL() + "?base64_encoded=false&wait=true"
+			resp, err := httpClient.Post(syncURL, "application/json", bytes.NewBuffer(payloadBytes))
 			if err != nil {
-				c.JSON(http.StatusBadGateway, gin.H{
-					"error":   "Judge0 request failed",
-					"details": err.Error(),
-				})
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Judge0 Engine unreachable"})
 				return
 			}
+			defer resp.Body.Close()
 
-			actualOut := judgeResp.Stdout
-			expectedOut := tc.ExpectedOutput
+			var judgeResp Judge0Response
+			bodyBytes, _ := io.ReadAll(resp.Body)
+			json.Unmarshal(bodyBytes, &judgeResp)
+
+			actualOut := strings.TrimSpace(judgeResp.Stdout)
+			expectedOut := strings.TrimSpace(tc.ExpectedOutput)
 			checkerType := resolvedCheckerType(tc.CheckerType)
 			matchedOutput := outputsMatchWithChecker(actualOut, expectedOut, checkerType, tc.FloatTolerance)
 			passed := judgeResp.Status.ID == 3 && matchedOutput
@@ -243,6 +247,88 @@ func SubmitCodeHandler(db *gorm.DB) gin.HandlerFunc {
 			"summary":      buildJudgeSummary(results, timeMsTotal, timeMsMax, memoryTotal, memoryMax),
 		})
 	}
+}
+
+// Fallback execution when no cases are in DB
+func runWithoutDBCases(c *gin.Context, req SubmitRequest, action string) {
+	httpClient := &http.Client{Timeout: 20 * time.Second}
+	limits := limitsForLanguage(req.LanguageID)
+
+	judgeReq := Judge0Request{
+		SourceCode:    req.Code,
+		LanguageID:    req.LanguageID,
+		Stdin:         req.FallbackInput,
+		CPUTimeLimit:  limits.CPUTimeLimit,
+		WallTimeLimit: limits.WallTimeLimit,
+		MemoryLimitKB: limits.MemoryLimitKB,
+	}
+
+	judgeResp, err := createAndAwaitJudgeResult(httpClient, judgeReq)
+	if err != nil {
+		c.JSON(http.StatusBadGateway, gin.H{
+			"error":   "Judge0 request failed",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	execDetail := strings.TrimSpace(strings.Join([]string{
+		judgeResp.Message,
+		judgeResp.Stderr,
+		judgeResp.CompileOutput,
+	}, "\n"))
+
+	passed := judgeResp.Status.ID == 3
+	verdict := deriveVerdict(judgeResp.Status.ID, false)
+	if passed {
+		verdict = "Accepted"
+	}
+
+	results := []CaseResult{
+		{
+			CaseIndex:       1,
+			Verdict:         verdict,
+			Checker:         "none",
+			StatusID:        judgeResp.Status.ID,
+			Status:          judgeResp.Status.Description,
+			Passed:          passed,
+			Time:            judgeResp.Time,
+			MemoryKB:        judgeResp.Memory,
+			Hidden:          false,
+			ExecutionDetail: execDetail,
+			ActualOutput:    normalizeOutput(judgeResp.Stdout),
+		},
+	}
+
+	timeMs := timeToMilliseconds(judgeResp.Time)
+	summary := buildJudgeSummary(results, timeMs, timeMs, judgeResp.Memory, judgeResp.Memory)
+	baseMessage := "No DB test cases found; executed directly on Judge0."
+	if strings.TrimSpace(action) == "run" {
+		baseMessage = "Run executed directly on Judge0 (no DB test cases found)."
+	}
+
+	if !passed {
+		c.JSON(http.StatusOK, gin.H{
+			"status":       "Failed",
+			"verdict":      verdict,
+			"message":      baseMessage,
+			"problem_slug": strings.TrimSpace(req.ProblemSlug),
+			"results":      results,
+			"summary":      summary,
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"status":       "Accepted",
+		"verdict":      "Accepted",
+		"message":      baseMessage,
+		"problem_slug": strings.TrimSpace(req.ProblemSlug),
+		"passed_cases": 1,
+		"total_cases":  1,
+		"results":      results,
+		"summary":      summary,
+	})
 }
 
 func fetchTestCasesForProblem(db *gorm.DB, rawProblemSlug, action string) ([]TestCase, error) {
