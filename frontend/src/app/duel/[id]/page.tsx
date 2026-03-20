@@ -95,6 +95,8 @@ async function submitToBackendJudge(
   sourceCode: string,
   languageID: number,
   problemSlug: string,
+  fallbackInput: string,
+  action: "run" | "submit",
 ): Promise<BackendJudgeResult> {
   try {
     const res = await fetch(`${API_BASE}submit-judge`, {
@@ -104,7 +106,8 @@ async function submitToBackendJudge(
         code: sourceCode,
         language_id: languageID,
         problem_slug: problemSlug,
-        action: "submit",
+        action: action,
+        fallback_input: fallbackInput,
       }),
     });
     let data: BackendJudgeResponse = { status: "Failed" };
@@ -410,7 +413,11 @@ function DuelRoomInner() {
   ]);
 
   const fetchProblem = useCallback(
-    async (diff: Difficulty, contestId?: string, mode: ProblemMode = "same") => {
+    async (
+      diff: Difficulty,
+      contestId?: string,
+      mode: ProblemMode = "same",
+    ) => {
       setFetchingProblem(true);
       setErrorMsg("");
       setHintText("");
@@ -452,7 +459,7 @@ function DuelRoomInner() {
             snippetMap[slug] = DEFAULT_SNIPPETS[slug];
           }
         });
-        // Heal older bad drafts where java starter leaked into python slot.
+
         if (
           snippetMap["python3"] &&
           snippetMap["python3"].includes("class Solution") &&
@@ -507,13 +514,18 @@ function DuelRoomInner() {
         languageRef.current = initialLang;
         localStorage.setItem(draftLangStorageKey(duelId), initialLang);
 
-        const savedCode = localStorage.getItem(draftCodeKey(duelId, initialLang));
+        const savedCode = localStorage.getItem(
+          draftCodeKey(duelId, initialLang),
+        );
         const legacySavedCode = localStorage.getItem(`draft_code_${duelId}`);
         if (savedCode) {
           setCode(savedCode);
         } else if (legacySavedCode) {
           setCode(legacySavedCode);
-          localStorage.setItem(draftCodeKey(duelId, initialLang), legacySavedCode);
+          localStorage.setItem(
+            draftCodeKey(duelId, initialLang),
+            legacySavedCode,
+          );
         } else {
           const starter = getStarterCode(initialLang);
           setCode(starter);
@@ -651,6 +663,7 @@ function DuelRoomInner() {
 
   const [showLeaveWarning, setShowLeaveWarning] = useState(false);
   const [showForfeitConfirm, setShowForfeitConfirm] = useState(false);
+
   useEffect(() => {
     if (phase === "dueling" || phase === "waiting" || phase === "countdown") {
       const url = window.location.href;
@@ -663,11 +676,11 @@ function DuelRoomInner() {
           difficulty,
           mode: problemMode,
           url,
-      phase,
-      timerSecs: timer,
-      timestamp: Date.now(),
-    }),
-  );
+          phase,
+          timerSecs: timer,
+          timestamp: Date.now(),
+        }),
+      );
     }
     if (phase === "won" || phase === "lost") {
       localStorage.removeItem("elonode_active_contest");
@@ -710,7 +723,15 @@ function DuelRoomInner() {
     localStorage.removeItem(draftLangStorageKey(duelId));
     localStorage.removeItem(`draft_code_${duelId}`);
     router.push("/arena");
-  }, [duelId, myNodeId, opponent.id, wsConnected, wsSend, router, availableLanguages]);
+  }, [
+    duelId,
+    myNodeId,
+    opponent.id,
+    wsConnected,
+    wsSend,
+    router,
+    availableLanguages,
+  ]);
 
   const requestHint = useCallback(async () => {
     if (!problem || hintLoading) return;
@@ -783,30 +804,28 @@ function DuelRoomInner() {
     }
   }, [problem, analysisLoading, language, code, phase]);
 
-  const submitSolution = useCallback(async () => {
-    if (phase !== "dueling" || !problem) return;
-    clearInterval(timerRef.current!);
-    clearInterval(opponentRef.current!);
-    setPhase("submitting");
-    setMyProgress(100);
-    setErrorMsg("");
+  const executeCode = useCallback(
+    async (action: "run" | "submit") => {
+      if (phase !== "dueling" || !problem) return;
+      clearInterval(timerRef.current!);
+      clearInterval(opponentRef.current!);
+      setPhase("submitting");
+      setMyProgress(100);
+      setErrorMsg("");
 
-    const wrappedCode = wrapCode(
-      code,
-      toWrapperLanguage(language),
-      problem.metaData,
-      problem.examples,
-    );
-    const resolvedLanguageID =
-      resolveJudge0LanguageId(language, judgeLanguages) ??
-      getFallbackJudge0LanguageId(language);
-    if (!resolvedLanguageID) {
-      setErrorMsg(
-        `Selected language (${getLanguageLabel(language)}) is not supported by judge right now.`,
+      const wrappedCode = wrapCode(
+        code,
+        toWrapperLanguage(language),
+        problem.metaData,
+        problem.examples,
       );
-      setPhase("dueling");
-      timerRef.current = setInterval(
-        () =>
+      const resolvedLanguageID =
+        resolveJudge0LanguageId(language, judgeLanguages) ??
+        getFallbackJudge0LanguageId(language);
+
+      const resumeTimers = () => {
+        setPhase("dueling");
+        timerRef.current = setInterval(() => {
           setTimer((t) => {
             if (t <= 1) {
               clearInterval(timerRef.current!);
@@ -819,87 +838,104 @@ function DuelRoomInner() {
               return 0;
             }
             return t - 1;
-          }),
-        1000,
-      );
-      return;
-    }
-    const judgeResult = await submitToBackendJudge(
-      wrappedCode,
-      resolvedLanguageID,
-      problem.slug,
-    );
+          });
+        }, 1000);
+        let prog = opponentProgress;
+        opponentRef.current = setInterval(() => {
+          prog += Math.random() * 3 + 0.5;
+          if (prog >= 95) {
+            prog = 95;
+            clearInterval(opponentRef.current!);
+          }
+          setOpponentProgress(Math.round(Math.min(95, prog)));
+        }, 1500);
+      };
 
-    const publicResults = judgeResult.results.filter((r) => !r.hidden);
-    if (publicResults.length > 0) {
-      setTestResults(
-        publicResults.map((r) => (r.passed ? "passed" : "failed")),
-      );
-    } else {
-      setTestResults([judgeResult.status === "Accepted" ? "passed" : "failed"]);
-    }
-
-    if (!judgeResult.ok || judgeResult.status !== "Accepted") {
-      setErrorMsg(
-        judgeResult.message || judgeResult.verdict || "Submission failed.",
-      );
-      setPhase("dueling");
-      timerRef.current = setInterval(
-        () =>
-          setTimer((t) => {
-            if (t <= 1) {
-              clearInterval(timerRef.current!);
-              availableLanguages.forEach((slug) =>
-                localStorage.removeItem(draftCodeKey(duelId, slug)),
-              );
-              localStorage.removeItem(draftLangStorageKey(duelId));
-              localStorage.removeItem(`draft_code_${duelId}`);
-              setPhase("lost");
-              return 0;
-            }
-            return t - 1;
-          }),
-        1000,
-      );
-      return;
-    }
-
-    setEditorLocked(true);
-    wsSend("won", { contest_id: duelId, to_id: opponent.id });
-    await finalizeContest(duelId, myNodeId, opponent.id, API_BASE);
-
-    try {
-      const uid = localStorage.getItem("elonode_db_id");
-      if (uid) {
-        const res = await fetch(`${API_BASE}users/${uid}`);
-        if (res.ok) {
-          const u = await res.json();
-          setRatingChange(u.current_rating - oldRating);
-        } else setRatingChange(72);
+      if (!resolvedLanguageID) {
+        setErrorMsg(
+          `Selected language (${getLanguageLabel(language)}) is not supported by judge right now.`,
+        );
+        resumeTimers();
+        return;
       }
-    } catch {
-      setRatingChange(72);
-    }
 
-    availableLanguages.forEach((slug) =>
-      localStorage.removeItem(draftCodeKey(duelId, slug)),
-    );
-    localStorage.removeItem(draftLangStorageKey(duelId));
-    localStorage.removeItem(`draft_code_${duelId}`);
-    setPhase("won");
-  }, [
-    phase,
-    problem,
-    code,
-    language,
-    oldRating,
-    duelId,
-    myNodeId,
-    opponent.id,
-    judgeLanguages,
-    availableLanguages,
-    wsSend,
-  ]);
+      const exampleInputs = problem.examples
+        .split("\n")
+        .filter((l) => l.trim());
+      const fallbackInputData =
+        exampleInputs.length > 0 ? exampleInputs[0] : "";
+
+      const judgeResult = await submitToBackendJudge(
+        wrappedCode,
+        resolvedLanguageID,
+        problem.slug,
+        fallbackInputData,
+        action,
+      );
+
+      const publicResults = judgeResult.results.filter((r) => !r.hidden);
+      if (publicResults.length > 0) {
+        setTestResults(
+          publicResults.map((r) => (r.passed ? "passed" : "failed")),
+        );
+      } else {
+        setTestResults([
+          judgeResult.status === "Accepted" ? "passed" : "failed",
+        ]);
+      }
+
+      if (!judgeResult.ok || judgeResult.status !== "Accepted") {
+        setErrorMsg(
+          judgeResult.message || judgeResult.verdict || "Submission failed.",
+        );
+        resumeTimers();
+        return;
+      }
+
+      if (action === "run") {
+        setErrorMsg("Run Successful! All public test cases passed.");
+        resumeTimers();
+      } else {
+        setEditorLocked(true);
+        wsSend("won", { contest_id: duelId, to_id: opponent.id });
+        await finalizeContest(duelId, myNodeId, opponent.id, API_BASE);
+
+        try {
+          const uid = localStorage.getItem("elonode_db_id");
+          if (uid) {
+            const res = await fetch(`${API_BASE}users/${uid}`);
+            if (res.ok) {
+              const u = await res.json();
+              setRatingChange(u.current_rating - oldRating);
+            } else setRatingChange(72);
+          }
+        } catch {
+          setRatingChange(72);
+        }
+
+        availableLanguages.forEach((slug) =>
+          localStorage.removeItem(draftCodeKey(duelId, slug)),
+        );
+        localStorage.removeItem(draftLangStorageKey(duelId));
+        localStorage.removeItem(`draft_code_${duelId}`);
+        setPhase("won");
+      }
+    },
+    [
+      phase,
+      problem,
+      code,
+      language,
+      oldRating,
+      duelId,
+      myNodeId,
+      opponent.id,
+      judgeLanguages,
+      availableLanguages,
+      wsSend,
+      opponentProgress,
+    ],
+  );
 
   if (phase === "loading" || fetchingProblem)
     return (
@@ -1436,8 +1472,8 @@ function DuelRoomInner() {
               the sidebar.
             </p>
             <p className="text-zinc-600 text-[10px] leading-relaxed mb-6">
-              Your opponent&apos;s contest will continue. Come back before time runs
-              out!
+              Your opponent&apos;s contest will continue. Come back before time
+              runs out!
             </p>
             <div className="flex gap-3">
               <button
@@ -1931,16 +1967,20 @@ function DuelRoomInner() {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setShowForfeitConfirm(true)}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-[10px] font-bold uppercase tracking-widest border cursor-pointer transition-all text-zinc-500 hover:text-rose-400 hover:border-rose-400/30"
-                  style={{
-                    background: "transparent",
-                    borderColor: "rgba(255,255,255,0.06)",
-                  }}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-[10px] font-bold uppercase tracking-widest border cursor-pointer transition-all text-zinc-500 hover:text-rose-400 hover:border-rose-400/30 bg-transparent"
+                  style={{ borderColor: "rgba(255,255,255,0.06)" }}
                 >
                   Leave
                 </button>
                 <button
-                  onClick={submitSolution}
+                  onClick={() => executeCode("run")}
+                  disabled={phase === "submitting" || editorLocked}
+                  className="flex items-center gap-2 px-5 py-2 rounded-lg text-white font-mono text-[10px] font-bold uppercase tracking-widest border border-indigo-500/30 cursor-pointer transition-all disabled:opacity-50 hover:bg-indigo-500/10 bg-transparent"
+                >
+                  ▶ Run
+                </button>
+                <button
+                  onClick={() => executeCode("submit")}
                   disabled={phase === "submitting" || editorLocked}
                   className="flex items-center gap-2 px-5 py-2 rounded-lg text-white font-mono text-[10px] font-bold uppercase tracking-widest border-0 cursor-pointer transition-all disabled:opacity-50"
                   style={{
@@ -1955,7 +1995,7 @@ function DuelRoomInner() {
                   }}
                 >
                   <Zap size={12} />{" "}
-                  {phase === "submitting" ? "Running..." : "Submit"}
+                  {phase === "submitting" ? "Processing..." : "Submit"}
                 </button>
               </div>
             </div>
@@ -2029,4 +2069,3 @@ export default function DuelRoom() {
     </Suspense>
   );
 }
-
