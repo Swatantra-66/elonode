@@ -426,7 +426,7 @@ func computeICPCScoreboard(startedAt time.Time, teams []TeamContestTeam, problem
 				mins = 0
 			}
 			st.solvedAtMin = mins
-		} else {
+		} else if s.Verdict != "CE" {
 			st.wrongBefore++
 		}
 	}
