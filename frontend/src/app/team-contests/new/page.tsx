@@ -16,6 +16,7 @@ import {
   Zap,
   Swords,
   Loader2,
+  RefreshCw,
 } from "lucide-react";
 
 const orbitron = Orbitron({ subsets: ["latin"], weight: ["700", "900"] });
@@ -27,12 +28,22 @@ type TeamInput = {
   captain_id: string;
 };
 
+const DIFF_COLORS: Record<string, string> = {
+  easy: "#4ade80",
+  medium: "#fbbf24",
+  hard: "#f87171",
+};
+
 export default function CreateICPCContest() {
   const router = useRouter();
 
   const [name, setName] = useState("ICPC 3v3 Room");
   const [durationSec, setDurationSec] = useState(7200);
-  const [problemSlugs, setProblemSlugs] = useState("two-sum,valid-parentheses");
+  const [problemSlugs, setProblemSlugs] = useState("");
+  const [fetchingProblems, setFetchingProblems] = useState(false);
+  const [fetchedProblems, setFetchedProblems] = useState<
+    { slug: string; title: string; difficulty: string }[]
+  >([]);
 
   const [teamA, setTeamA] = useState<TeamInput>({
     team_name: "Team Alpha",
@@ -58,12 +69,70 @@ export default function CreateICPCContest() {
     });
   };
 
+  const fetchRandomProblems = async (count: number, difficulty?: string) => {
+    setFetchingProblems(true);
+    setError("");
+    const difficulties = difficulty
+      ? Array(count).fill(difficulty)
+      : [
+          "easy",
+          "medium",
+          "hard",
+          "medium",
+          "hard",
+          "easy",
+          "medium",
+          "hard",
+        ].slice(0, count);
+
+    const fetched: { slug: string; title: string; difficulty: string }[] = [];
+    const usedSlugs = new Set<string>();
+
+    for (let i = 0; i < count; i++) {
+      try {
+        const res = await fetch(
+          `${API}problems/random?difficulty=${difficulties[i]}`,
+        );
+        if (!res.ok) continue;
+        const data = await res.json();
+        if (data.slug && !usedSlugs.has(data.slug)) {
+          usedSlugs.add(data.slug);
+          fetched.push({
+            slug: data.slug,
+            title: data.title || data.slug,
+            difficulty: data.difficulty || difficulties[i],
+          });
+        }
+      } catch {}
+    }
+
+    setFetchedProblems(fetched);
+    setProblemSlugs(fetched.map((p) => p.slug).join(","));
+    setFetchingProblems(false);
+  };
+
+  const removeSlug = (slug: string) => {
+    const updated = fetchedProblems.filter((p) => p.slug !== slug);
+    setFetchedProblems(updated);
+    setProblemSlugs(updated.map((p) => p.slug).join(","));
+  };
+
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setSubmitting(true);
 
     try {
+      const slugList = problemSlugs
+        .split(",")
+        .map((x) => x.trim())
+        .filter(Boolean);
+      if (slugList.length === 0) {
+        setError("Select at least one problem");
+        setSubmitting(false);
+        return;
+      }
+
       const payload = {
         name: name.trim(),
         mode: "icpc_3v3",
@@ -78,10 +147,7 @@ export default function CreateICPCContest() {
           member_ids: teamB.member_ids.map((x) => x.trim()),
           captain_id: teamB.captain_id.trim(),
         },
-        problem_slugs: problemSlugs
-          .split(",")
-          .map((x) => x.trim())
-          .filter(Boolean),
+        problem_slugs: slugList,
       };
 
       const res = await fetch(`${API}team-contests`, {
@@ -90,13 +156,11 @@ export default function CreateICPCContest() {
         body: JSON.stringify(payload),
       });
       const data = await res.json();
-
       if (!res.ok) {
-        setError(data?.error || "Failed to deploy contest instance");
+        setError(data?.error || "Failed to deploy contest");
         setSubmitting(false);
         return;
       }
-
       router.push(`/team-contests/${data.id}`);
     } catch {
       setError("Network error while deploying contest");
@@ -125,7 +189,6 @@ export default function CreateICPCContest() {
         : color === "rose"
           ? "rgba(244,63,94,0.15)"
           : "rgba(251,191,36,0.15)";
-
     return (
       <div className="flex flex-col gap-1.5 w-full">
         <label className="text-[9px] text-zinc-500 uppercase tracking-[0.2em] font-bold ml-1">
@@ -158,10 +221,7 @@ export default function CreateICPCContest() {
   return (
     <div
       className="min-h-screen relative w-full flex flex-col items-center pt-8 pb-24 px-6"
-      style={{
-        fontFamily: "ui-monospace,monospace",
-        color: "#e4e4e7",
-      }}
+      style={{ fontFamily: "ui-monospace,monospace", color: "#e4e4e7" }}
     >
       <div className="w-full max-w-4xl flex flex-col gap-6 relative z-10">
         <div className="mb-2 flex items-center justify-between">
@@ -183,7 +243,6 @@ export default function CreateICPCContest() {
           >
             <ArrowLeft size={12} /> Abort Setup
           </Link>
-
           {error && (
             <div className="text-[10px] text-rose-500 bg-rose-500/10 border border-rose-500/20 px-3 py-1 rounded font-bold uppercase tracking-widest">
               {error}
@@ -230,7 +289,7 @@ export default function CreateICPCContest() {
               </div>
             </div>
 
-            <div className="p-8 grid grid-cols-1 md:grid-cols-3 gap-6 bg-black/20">
+            <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-6 bg-black/20">
               <GlowingInput
                 icon={Shield}
                 label="Lobby Name"
@@ -246,13 +305,132 @@ export default function CreateICPCContest() {
                 placeholder="7200"
                 type="number"
               />
-              <GlowingInput
-                icon={Code2}
-                label="Target Slugs (Comma Separated)"
-                value={problemSlugs}
-                onChange={(e: any) => setProblemSlugs(e.target.value)}
-                placeholder="two-sum, valid-parentheses"
-              />
+            </div>
+
+            {/* ── Problem Selector ── */}
+            <div className="px-8 pb-8 bg-black/20">
+              <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <Code2 size={14} className="text-amber-400" />
+                    <span className="text-[10px] text-amber-400 font-bold uppercase tracking-widest">
+                      Target Problems
+                    </span>
+                  </div>
+                  <span className="text-[9px] text-zinc-600 font-mono">
+                    {fetchedProblems.length} selected
+                  </span>
+                </div>
+
+                <div className="flex flex-wrap gap-2 mb-4">
+                  <span className="text-[9px] text-zinc-600 uppercase tracking-widest self-center mr-1">
+                    Quick pick:
+                  </span>
+                  {[
+                    { label: "3 Mixed", count: 3, diff: undefined },
+                    { label: "5 Mixed", count: 5, diff: undefined },
+                    { label: "3 Easy", count: 3, diff: "easy" },
+                    { label: "3 Medium", count: 3, diff: "medium" },
+                    { label: "3 Hard", count: 3, diff: "hard" },
+                  ].map((opt) => (
+                    <button
+                      key={opt.label}
+                      type="button"
+                      onClick={() => fetchRandomProblems(opt.count, opt.diff)}
+                      disabled={fetchingProblems}
+                      className="px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-widest border transition-all disabled:opacity-40 cursor-pointer"
+                      style={{
+                        borderColor: opt.diff
+                          ? `${DIFF_COLORS[opt.diff]}40`
+                          : "rgba(251,191,36,0.3)",
+                        color: opt.diff ? DIFF_COLORS[opt.diff] : "#fbbf24",
+                        background: opt.diff
+                          ? `${DIFF_COLORS[opt.diff]}08`
+                          : "rgba(251,191,36,0.06)",
+                      }}
+                    >
+                      {fetchingProblems ? (
+                        <RefreshCw size={10} className="animate-spin inline" />
+                      ) : (
+                        opt.label
+                      )}
+                    </button>
+                  ))}
+                </div>
+
+                {fetchedProblems.length > 0 ? (
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    {fetchedProblems.map((p, i) => (
+                      <div
+                        key={p.slug}
+                        className="flex items-center gap-2 px-3 py-1.5 rounded-lg border text-[9px] font-mono"
+                        style={{
+                          borderColor: `${DIFF_COLORS[p.difficulty?.toLowerCase() || "easy"]}30`,
+                          background: `${DIFF_COLORS[p.difficulty?.toLowerCase() || "easy"]}08`,
+                        }}
+                      >
+                        <span
+                          className="font-bold"
+                          style={{
+                            color:
+                              DIFF_COLORS[
+                                p.difficulty?.toLowerCase() || "easy"
+                              ],
+                          }}
+                        >
+                          {String.fromCharCode(65 + i)}
+                        </span>
+                        <span className="text-zinc-300 max-w-[160px] truncate">
+                          {p.title || p.slug}
+                        </span>
+                        <span
+                          className="text-[8px] px-1.5 py-0.5 rounded"
+                          style={{
+                            background: `${DIFF_COLORS[p.difficulty?.toLowerCase() || "easy"]}15`,
+                            color:
+                              DIFF_COLORS[
+                                p.difficulty?.toLowerCase() || "easy"
+                              ],
+                          }}
+                        >
+                          {p.difficulty}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => removeSlug(p.slug)}
+                          className="text-zinc-600 hover:text-rose-400 transition-colors ml-1 cursor-pointer"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-[10px] text-zinc-600 font-mono mb-3 py-3 text-center border border-dashed border-zinc-800 rounded-lg">
+                    Click a quick pick button to auto-fetch problems →
+                  </div>
+                )}
+
+                <div className="relative mt-2">
+                  <Code2
+                    size={13}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-600"
+                  />
+                  <input
+                    value={problemSlugs}
+                    onChange={(e) => setProblemSlugs(e.target.value)}
+                    placeholder="or type slugs manually: two-sum, valid-parentheses"
+                    className="w-full bg-black/40 border border-zinc-800 rounded-lg pl-9 pr-4 py-2.5 text-xs text-zinc-400 font-mono outline-none transition-all placeholder:text-zinc-700"
+                    onFocus={(e) => {
+                      e.currentTarget.style.borderColor =
+                        "rgba(251,191,36,0.4)";
+                    }}
+                    onBlur={(e) => {
+                      e.currentTarget.style.borderColor = "rgba(39,39,42,1)";
+                    }}
+                  />
+                </div>
+              </div>
             </div>
           </div>
 
@@ -292,7 +470,6 @@ export default function CreateICPCContest() {
                   />
                 </div>
               </div>
-
               {[0, 1, 2].map((idx) => (
                 <GlowingInput
                   key={`a-${idx}`}
@@ -304,7 +481,6 @@ export default function CreateICPCContest() {
                   onChange={(e: any) => setMember("a", idx, e.target.value)}
                 />
               ))}
-
               <div className="pt-4 border-t border-indigo-500/10 mt-2">
                 <GlowingInput
                   icon={Crown}
@@ -346,7 +522,6 @@ export default function CreateICPCContest() {
                   />
                 </div>
               </div>
-
               {[0, 1, 2].map((idx) => (
                 <GlowingInput
                   key={`b-${idx}`}
@@ -358,7 +533,6 @@ export default function CreateICPCContest() {
                   onChange={(e: any) => setMember("b", idx, e.target.value)}
                 />
               ))}
-
               <div className="pt-4 border-t border-rose-500/10 mt-2">
                 <GlowingInput
                   icon={Crown}
@@ -374,7 +548,7 @@ export default function CreateICPCContest() {
             </div>
           </div>
 
-          <div className="flex justify-center mt-12 mb-8 relative w-full">
+          <div className="flex justify-center mt-12 mb-8">
             <button
               type="submit"
               disabled={submitting}
