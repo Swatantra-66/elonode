@@ -31,7 +31,7 @@ type SubmitRequest struct {
 	LanguageID    int    `json:"language_id" binding:"required"`
 	ProblemSlug   string `json:"problem_slug" binding:"required"`
 	Action        string `json:"action" binding:"required"`
-	FallbackInput string `json:"fallback_input"` // Added for Dynamic Live Execution
+	FallbackInput string `json:"fallback_input"`
 }
 
 type Judge0Request struct {
@@ -257,7 +257,7 @@ func runWithoutDBCases(c *gin.Context, req SubmitRequest, action string) {
 	judgeReq := Judge0Request{
 		SourceCode:    req.Code,
 		LanguageID:    req.LanguageID,
-		Stdin:         req.FallbackInput,
+		Stdin:         "",
 		CPUTimeLimit:  limits.CPUTimeLimit,
 		WallTimeLimit: limits.WallTimeLimit,
 		MemoryLimitKB: limits.MemoryLimitKB,
