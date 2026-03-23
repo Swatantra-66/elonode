@@ -12,8 +12,6 @@ import {
   Clock,
   ShieldAlert,
   Zap,
-  CheckCircle2,
-  XCircle,
   Users,
   Code2,
   AlertTriangle,
@@ -113,9 +111,8 @@ export default function TeamContestPage() {
 
       if (!teamID && contestData.teams?.[0]?.id)
         setTeamID(contestData.teams[0].id);
-      if (!problemSlug && contestData.problems?.[0]?.problem_slug) {
+      if (!problemSlug && contestData.problems?.[0]?.problem_slug)
         setProblemSlug(contestData.problems[0].problem_slug);
-      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load data");
     } finally {
@@ -253,6 +250,12 @@ export default function TeamContestPage() {
 
           <div className="flex gap-3">
             <Link
+              href={`/team-contests/${contestID}/lobby`}
+              className="px-4 py-2 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-xs text-indigo-300 hover:bg-indigo-500/20 hover:text-white transition-all uppercase tracking-widest font-bold"
+            >
+              Enter Lobby
+            </Link>
+            <Link
               href="/team-contests/new"
               className="px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-xs text-zinc-300 hover:bg-white/10 hover:text-white transition-all uppercase tracking-widest font-bold"
             >
@@ -277,7 +280,6 @@ export default function TeamContestPage() {
                 ICPC SCOREBOARD
               </h2>
             </div>
-
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
@@ -356,7 +358,7 @@ export default function TeamContestPage() {
                   className="flex items-center gap-3 p-3 rounded-lg bg-black/40 border border-white/5 hover:border-cyan-500/30 transition-colors"
                 >
                   <div className="w-6 h-6 rounded bg-cyan-500/10 flex items-center justify-center text-xs font-black text-cyan-400">
-                    {String.fromCharCode(64 + p.position)}{" "}
+                    {String.fromCharCode(64 + p.position)}
                   </div>
                   <span className="text-xs text-zinc-300 font-mono truncate">
                     {p.problem_slug}
@@ -392,7 +394,6 @@ export default function TeamContestPage() {
                   <div className="text-sm font-black text-white uppercase tracking-wide mb-4 truncate">
                     {t.team_name}
                   </div>
-
                   <div className="space-y-2">
                     {(membersByTeam.get(t.id) || []).map((m) => (
                       <div
@@ -406,7 +407,7 @@ export default function TeamContestPage() {
                         )}
                         <span className="truncate">
                           {m.user_id.split("-")[0]}...
-                        </span>{" "}
+                        </span>
                       </div>
                     ))}
                   </div>
@@ -427,7 +428,6 @@ export default function TeamContestPage() {
                 SYSTEM OVERRIDE
               </h2>
             </div>
-
             <div className="space-y-4 relative z-10">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
@@ -463,7 +463,6 @@ export default function TeamContestPage() {
                   </select>
                 </div>
               </div>
-
               <div className="space-y-1.5">
                 <label className="text-[9px] text-zinc-500 uppercase tracking-widest font-bold">
                   Verdict Payload
@@ -481,7 +480,6 @@ export default function TeamContestPage() {
                   ))}
                 </select>
               </div>
-
               <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-white/5 mt-2">
                 <button
                   onClick={submitVerdict}
