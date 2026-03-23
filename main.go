@@ -49,7 +49,8 @@ func main() {
 		sqlDB.SetConnMaxLifetime(time.Hour)
 	}
 
-	hub := handlers.NewWSHub()
+	// hub := handlers.NewWSHub()
+	hub := handlers.NewWSHubWithDB(db)
 	go hub.Run()
 
 	// if err := db.AutoMigrate(
@@ -84,6 +85,8 @@ func main() {
 		api.GET("/history", h.GetGlobalHistory)
 		api.GET("/problems/random", h.GetRandomProblem)
 		api.GET("/ws", h.ServeWS(hub))
+		api.GET("/hints/health", h.HintHealth)
+		api.GET("/team-contests/:id/my-team", h.GetMyTeam)
 
 		api.POST("/contests/:id/finalize", h.FinalizeContest)
 		api.POST("/contests/:id/config", h.SetContestConfig)
@@ -95,7 +98,7 @@ func main() {
 		api.POST("/submit-judge", handlers.SubmitCodeHandler(db))
 		api.POST("/hints", h.GenerateHint)
 		api.POST("/analysis", h.GenerateAnalysis)
-		api.GET("/hints/health", h.HintHealth)
+		api.POST("/team-contests/:id/start", h.StartTeamContest)
 
 		api.DELETE("/contests/:id", RequireAdminAuth(), h.DeleteContest)
 	}
