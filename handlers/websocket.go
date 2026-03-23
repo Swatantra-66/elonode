@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
+	"gorm.io/gorm"
 )
 
 var upgrader = websocket.Upgrader{
@@ -55,6 +56,34 @@ type LeavePayload struct {
 	ContestID string `json:"contest_id"`
 	UserID    string `json:"user_id"`
 	ToID      string `json:"to_id"`
+}
+
+type TeamJoinPayload struct {
+	ContestID string `json:"contest_id"`
+	UserID    string `json:"user_id"`
+	UserName  string `json:"user_name"`
+	TeamID    string `json:"team_id"`
+	ImageURL  string `json:"image_url"`
+}
+
+type TeamReadyPayload struct {
+	ContestID string `json:"contest_id"`
+	UserID    string `json:"user_id"`
+	TeamID    string `json:"team_id"`
+}
+
+type TeamSolvedPayload struct {
+	ContestID   string `json:"contest_id"`
+	UserID      string `json:"user_id"`
+	TeamID      string `json:"team_id"`
+	ProblemSlug string `json:"problem_slug"`
+	Verdict     string `json:"verdict"`
+}
+
+type TeamLeavePayload struct {
+	ContestID string `json:"contest_id"`
+	UserID    string `json:"user_id"`
+	TeamID    string `json:"team_id"`
 }
 
 type Client struct {
@@ -121,14 +150,31 @@ type WSHub struct {
 	unregister chan *Client
 	readyMap   map[string]map[string]bool
 	readyMu    sync.Mutex
+
+	teamRoomMap map[string]map[string]bool
+	teamRoomMu  sync.Mutex
+
+	db *gorm.DB
 }
 
 func NewWSHub() *WSHub {
 	return &WSHub{
-		clients:    make(map[string]*Client),
-		register:   make(chan *Client, 16),
-		unregister: make(chan *Client, 16),
-		readyMap:   make(map[string]map[string]bool),
+		clients:     make(map[string]*Client),
+		register:    make(chan *Client, 16),
+		unregister:  make(chan *Client, 16),
+		readyMap:    make(map[string]map[string]bool),
+		teamRoomMap: make(map[string]map[string]bool),
+	}
+}
+
+func NewWSHubWithDB(db *gorm.DB) *WSHub {
+	return &WSHub{
+		clients:     make(map[string]*Client),
+		register:    make(chan *Client, 16),
+		unregister:  make(chan *Client, 16),
+		readyMap:    make(map[string]map[string]bool),
+		teamRoomMap: make(map[string]map[string]bool),
+		db:          db,
 	}
 }
 
@@ -179,6 +225,19 @@ func (h *WSHub) broadcast(msg []byte) {
 		case c.Send <- msg:
 		default:
 		}
+	}
+}
+
+func (h *WSHub) broadcastToTeamRoom(contestID string, msg []byte) {
+	h.teamRoomMu.Lock()
+	users := make([]string, 0)
+	for uid := range h.teamRoomMap[contestID] {
+		users = append(users, uid)
+	}
+	h.teamRoomMu.Unlock()
+
+	for _, uid := range users {
+		h.sendTo(uid, msg)
 	}
 }
 
@@ -286,6 +345,140 @@ func (h *WSHub) handleMessage(c *Client, data []byte) {
 		payload, _ := json.Marshal(map[string]string{"contest_id": p.ContestID})
 		fwd, _ := json.Marshal(WSMessage{Type: "opponent_won", Payload: payload})
 		h.sendTo(p.ToID, fwd)
+
+	case "team_join":
+		var p TeamJoinPayload
+		if err := json.Unmarshal(msg.Payload, &p); err != nil {
+			return
+		}
+		p.UserID = c.UserID
+		p.UserName = c.UserName
+		p.ImageURL = c.ImageURL
+
+		h.teamRoomMu.Lock()
+		if h.teamRoomMap[p.ContestID] == nil {
+			h.teamRoomMap[p.ContestID] = make(map[string]bool)
+		}
+		h.teamRoomMap[p.ContestID][p.UserID] = false
+		memberCount := len(h.teamRoomMap[p.ContestID])
+		h.teamRoomMu.Unlock()
+
+		payload, _ := json.Marshal(map[string]interface{}{
+			"contest_id":   p.ContestID,
+			"user_id":      p.UserID,
+			"user_name":    p.UserName,
+			"team_id":      p.TeamID,
+			"image_url":    p.ImageURL,
+			"member_count": memberCount,
+		})
+		fwd, _ := json.Marshal(WSMessage{Type: "team_member_joined", Payload: payload})
+		h.broadcastToTeamRoom(p.ContestID, fwd)
+
+	case "team_ready":
+		var p TeamReadyPayload
+		if err := json.Unmarshal(msg.Payload, &p); err != nil {
+			return
+		}
+		p.UserID = c.UserID
+
+		h.teamRoomMu.Lock()
+		if h.teamRoomMap[p.ContestID] == nil {
+			h.teamRoomMap[p.ContestID] = make(map[string]bool)
+		}
+		h.teamRoomMap[p.ContestID][p.UserID] = true
+		readyCount := 0
+		totalCount := len(h.teamRoomMap[p.ContestID])
+		for _, ready := range h.teamRoomMap[p.ContestID] {
+			if ready {
+				readyCount++
+			}
+		}
+		h.teamRoomMu.Unlock()
+
+		payload, _ := json.Marshal(map[string]interface{}{
+			"contest_id":  p.ContestID,
+			"user_id":     p.UserID,
+			"team_id":     p.TeamID,
+			"ready_count": readyCount,
+			"total_count": totalCount,
+		})
+		fwd, _ := json.Marshal(WSMessage{Type: "team_ready_update", Payload: payload})
+		h.broadcastToTeamRoom(p.ContestID, fwd)
+
+		if readyCount >= 6 && totalCount >= 6 {
+			h.teamRoomMu.Lock()
+			for uid := range h.teamRoomMap[p.ContestID] {
+				h.teamRoomMap[p.ContestID][uid] = false
+			}
+			h.teamRoomMu.Unlock()
+
+			if h.db != nil {
+				h.db.Model(&TeamContest{}).
+					Where("id = ?", p.ContestID).
+					Update("started_at", time.Now().UTC())
+			}
+
+			startPayload, _ := json.Marshal(map[string]string{"contest_id": p.ContestID})
+			startMsg, _ := json.Marshal(WSMessage{Type: "team_start", Payload: startPayload})
+			h.broadcastToTeamRoom(p.ContestID, startMsg)
+		}
+
+	case "team_solved":
+		var p TeamSolvedPayload
+		if err := json.Unmarshal(msg.Payload, &p); err != nil {
+			return
+		}
+		p.UserID = c.UserID
+
+		allowed := map[string]bool{"AC": true, "WA": true, "TLE": true, "RE": true, "CE": true}
+		if !allowed[p.Verdict] {
+			return
+		}
+
+		if h.db != nil {
+			sub := TeamContestSubmission{
+				ContestID:   p.ContestID,
+				TeamID:      p.TeamID,
+				ProblemSlug: p.ProblemSlug,
+				Verdict:     p.Verdict,
+				SubmittedAt: time.Now().UTC(),
+			}
+			h.db.Create(&sub)
+		}
+
+		payload, _ := json.Marshal(map[string]interface{}{
+			"contest_id":   p.ContestID,
+			"user_id":      p.UserID,
+			"user_name":    c.UserName,
+			"team_id":      p.TeamID,
+			"problem_slug": p.ProblemSlug,
+			"verdict":      p.Verdict,
+			"submitted_at": time.Now().UTC(),
+		})
+		fwd, _ := json.Marshal(WSMessage{Type: "team_verdict", Payload: payload})
+		h.broadcastToTeamRoom(p.ContestID, fwd)
+
+	case "team_leave":
+		var p TeamLeavePayload
+		if err := json.Unmarshal(msg.Payload, &p); err != nil {
+			return
+		}
+		p.UserID = c.UserID
+
+		h.teamRoomMu.Lock()
+		if h.teamRoomMap[p.ContestID] != nil {
+			delete(h.teamRoomMap[p.ContestID], p.UserID)
+		}
+		h.teamRoomMu.Unlock()
+
+		payload, _ := json.Marshal(map[string]interface{}{
+			"contest_id": p.ContestID,
+			"user_id":    p.UserID,
+			"user_name":  c.UserName,
+			"team_id":    p.TeamID,
+		})
+		fwd, _ := json.Marshal(WSMessage{Type: "team_member_left", Payload: payload})
+		h.broadcastToTeamRoom(p.ContestID, fwd)
 	}
 }
 
