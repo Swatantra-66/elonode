@@ -13,7 +13,6 @@ import {
   Users,
   Crown,
   Cpu,
-  Zap,
   Swords,
   Loader2,
   RefreshCw,
@@ -50,13 +49,11 @@ export default function CreateICPCContest() {
     member_ids: ["", "", ""],
     captain_id: "",
   });
-
   const [teamB, setTeamB] = useState<TeamInput>({
     team_name: "Team Beta",
     member_ids: ["", "", ""],
     captain_id: "",
   });
-
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
@@ -121,7 +118,6 @@ export default function CreateICPCContest() {
     e.preventDefault();
     setError("");
     setSubmitting(true);
-
     try {
       const slugList = problemSlugs
         .split(",")
@@ -132,7 +128,6 @@ export default function CreateICPCContest() {
         setSubmitting(false);
         return;
       }
-
       const payload = {
         name: name.trim(),
         mode: "icpc_3v3",
@@ -149,7 +144,6 @@ export default function CreateICPCContest() {
         },
         problem_slugs: slugList,
       };
-
       const res = await fetch(`${API}team-contests`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -307,7 +301,6 @@ export default function CreateICPCContest() {
               />
             </div>
 
-            {/* ── Problem Selector ── */}
             <div className="px-8 pb-8 bg-black/20">
               <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-5">
                 <div className="flex items-center justify-between mb-4">
