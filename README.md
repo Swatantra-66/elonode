@@ -161,4 +161,4 @@ Ensure these are set in your deployment environments (Vercel & Render) and **nev
 
 ### Notice
 
-System infrastructure is undergoing optimization and will be migrating to a dedicated VPS(Droplet) in the coming months for enhanced performance.
+Notice: System infrastructure is undergoing optimization and will be migrating to a dedicated Droplet(VPS) in the coming months for enhanced performance
