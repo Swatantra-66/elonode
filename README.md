@@ -158,3 +158,7 @@ Ensure these are set in your deployment environments (Vercel & Render) and **nev
 - `NEXT_PUBLIC_CLERK_SIGN_IN_URL`: Clerk sign-in route (e.g., `/sign-in`).
 - `NEXT_PUBLIC_CLERK_SIGN_UP_URL`: Clerk sign-up route (e.g., `/sign-up`).
 - `NEXT_PUBLIC_ADMIN_USER_ID`: The specific Clerk User ID authorized to access the Admin Panel.
+
+### Notice
+
+System infrastructure is undergoing optimization and will be migrating to a dedicated VPS(Droplet) in the coming months for enhanced performance.
