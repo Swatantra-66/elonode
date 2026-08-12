@@ -32,20 +32,47 @@ func main() {
 		log.Println("WARNING: CLERK_SECRET_KEY is not set. Admin routes will fail.")
 	}
 
+	// dsn := os.Getenv("DATABASE_URL")
+	// if dsn == "" {
+	// 	dsn = "host=localhost user=postgres password=user15 dbname=contest_rating port=5432 sslmode=disable"
+	// }
+
+	// db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	// if err == nil {
+	// 	db = db.Debug()
+	// }
+
+	// sqlDB, err := db.DB()
+	// if err == nil {
+	// 	sqlDB.SetMaxIdleConns(10)
+	// 	sqlDB.SetMaxOpenConns(100)
+	// 	sqlDB.SetConnMaxLifetime(time.Hour)
+	// }
+
 	dsn := os.Getenv("DATABASE_URL")
 	if dsn == "" {
 		dsn = "host=localhost user=postgres password=user15 dbname=contest_rating port=5432 sslmode=disable"
 	}
 
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	// Configured for Supabase Transaction Pooler (Port 6543)
+	db, err := gorm.Open(postgres.New(postgres.Config{
+		DSN:                  dsn,
+		PreferSimpleProtocol: true, // Crucial for PgBouncer / Port 6543
+	}), &gorm.Config{
+		PrepareStmt: false,
+	})
+
 	if err == nil {
 		db = db.Debug()
+	} else {
+		log.Fatalf("Failed to connect to database: %v", err)
 	}
+	//patch code added for supabase transaction pooler on port 6543 - 12/08/26
 
 	sqlDB, err := db.DB()
 	if err == nil {
-		sqlDB.SetMaxIdleConns(10)
-		sqlDB.SetMaxOpenConns(100)
+		sqlDB.SetMaxIdleConns(5)
+		sqlDB.SetMaxOpenConns(25) // Optimized for Supabase pooler
 		sqlDB.SetConnMaxLifetime(time.Hour)
 	}
 
